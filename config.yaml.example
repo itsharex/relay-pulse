@@ -1,0 +1,48 @@
+monitors:
+  # --- 88code ---
+  - provider: "88code"
+    service: "cc"
+    url: "https://api.88code.com/v1/chat/completions"
+    method: "POST"
+    api_key: "sk-xxxxxxxx"  # 可通过环境变量 MONITOR_88CODE_CC_API_KEY 覆盖
+    headers:
+      Authorization: "Bearer {{API_KEY}}"
+      Content-Type: "application/json"
+    body: |
+      {
+        "model": "claude-3-opus",
+        "messages": [{"role": "user", "content": "hi"}],
+        "max_tokens": 1
+      }
+
+  - provider: "88code"
+    service: "cx"
+    url: "https://api.88code.com/v1/chat/completions"
+    method: "POST"
+    api_key: "sk-xxxxxxxx"
+    headers:
+      Authorization: "Bearer {{API_KEY}}"
+      Content-Type: "application/json"
+    body: |
+      {
+        "model": "gpt-4",
+        "messages": [{"role": "user", "content": "hi"}],
+        "max_tokens": 1
+      }
+
+  # --- DuckCoding (演示不同的 Header 格式) ---
+  - provider: "duckcoding"
+    service: "cc"
+    url: "https://api.duckcoding.com/v1/messages"
+    method: "POST"
+    api_key: "sk-duck-xxxx"
+    headers:
+      x-api-key: "{{API_KEY}}"
+      anthropic-version: "2023-06-01"
+      content-type: "application/json"
+    body: |
+      {
+        "model": "claude-3-sonnet",
+        "max_tokens": 1,
+        "messages": [{"role": "user", "content": "hi"}]
+      }
