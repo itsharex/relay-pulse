@@ -26,3 +26,4 @@ frontend/dist/
 frontend/.env*
 config.yaml
 config.local.yaml
+.playwright-mcp/

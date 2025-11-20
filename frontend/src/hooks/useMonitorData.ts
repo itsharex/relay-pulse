@@ -5,7 +5,8 @@ import type {
   SortConfig,
   StatusKey,
 } from '../types';
-import { API_BASE_URL, STATUS } from '../constants';
+import { API_BASE_URL, STATUS, USE_MOCK_DATA } from '../constants';
+import { fetchMockMonitorData } from '../utils/mockMonitor';
 
 // 导入 STATUS_MAP
 const statusMap: Record<number, StatusKey> = {
@@ -30,65 +31,85 @@ export function useMonitorData({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rawData, setRawData] = useState<ProcessedMonitorData[]>([]);
+  const [reloadToken, setReloadToken] = useState(0);
 
-  // 数据获取
+  // 数据获取 - 支持双模式（Mock / API）
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const url = `${API_BASE_URL}/api/status?period=${timeRange}`;
-        const response = await fetch(url);
+        let processed: ProcessedMonitorData[];
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (USE_MOCK_DATA) {
+          // 使用模拟数据 - 完全复刻 docs/front.jsx
+          processed = await fetchMockMonitorData(timeRange);
+        } else {
+          // 使用真实 API
+          const url = `${API_BASE_URL}/api/status?period=${timeRange}`;
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const json: ApiResponse = await response.json();
+
+          // 转换为前端数据格式
+          processed = json.data.map((item) => {
+            const history = item.timeline.map((point, index) => ({
+              index,
+              status: statusMap[point.status] || 'UNAVAILABLE',
+              timestamp: point.time,
+              latency: point.latency,
+            }));
+
+            const currentStatus = item.current_status
+              ? statusMap[item.current_status.status] || 'UNAVAILABLE'
+              : 'UNAVAILABLE';
+
+            // 计算可用率
+            const availableCount = history.filter((h) => h.status === 'AVAILABLE').length;
+            const uptime = parseFloat(((availableCount / history.length) * 100).toFixed(1));
+
+            return {
+              id: `${item.provider}-${item.service}`,
+              providerId: item.provider,
+              providerName: item.provider,
+              serviceType: item.service,
+              history,
+              currentStatus,
+              uptime,
+            };
+          });
         }
 
-        const json: ApiResponse = await response.json();
-
-        // 转换为前端数据格式
-        const processed: ProcessedMonitorData[] = json.data.map((item) => {
-          const history = item.timeline.map((point, index) => ({
-            index,
-            status: statusMap[point.status] || 'UNAVAILABLE',
-            timestamp: point.time,
-            latency: point.latency,
-          }));
-
-          const currentStatus = item.current_status
-            ? statusMap[item.current_status.status] || 'UNAVAILABLE'
-            : 'UNAVAILABLE';
-
-          // 计算可用率
-          const availableCount = history.filter((h) => h.status === 'AVAILABLE').length;
-          const uptime = parseFloat(((availableCount / history.length) * 100).toFixed(1));
-
-          return {
-            id: `${item.provider}-${item.service}`,
-            providerId: item.provider,
-            providerName: item.provider,
-            serviceType: item.service,
-            history,
-            currentStatus,
-            uptime,
-          };
-        });
-
+        // 防止组件卸载后的状态更新
+        if (!isMounted) return;
         setRawData(processed);
       } catch (err) {
+        if (!isMounted) return;
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [timeRange]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [timeRange, reloadToken]);
 
   // 数据过滤和排序
   const processedData = useMemo(() => {
-    let filtered = rawData.filter((item) => {
+    const filtered = rawData.filter((item) => {
       const matchService = filterService === 'all' || item.serviceType === filterService;
       const matchProvider = filterProvider === 'all' || item.providerId === filterProvider;
       return matchService && matchProvider;
@@ -96,8 +117,8 @@ export function useMonitorData({
 
     if (sortConfig.key) {
       filtered.sort((a, b) => {
-        let aValue: any = a[sortConfig.key as keyof ProcessedMonitorData];
-        let bValue: any = b[sortConfig.key as keyof ProcessedMonitorData];
+        let aValue: number | string = a[sortConfig.key as keyof ProcessedMonitorData] as number | string;
+        let bValue: number | string = b[sortConfig.key as keyof ProcessedMonitorData] as number | string;
 
         if (sortConfig.key === 'currentStatus') {
           aValue = STATUS[a.currentStatus].weight;
@@ -127,9 +148,10 @@ export function useMonitorData({
     data: processedData,
     stats,
     refetch: () => {
-      // 触发重新获取
-      setRawData([]);
+      // 真正触发重新获取 - 修复刷新按钮无效的问题
+      // 保持旧数据可见，直到新数据到来（与 docs/front.jsx 一致）
       setLoading(true);
+      setReloadToken((token) => token + 1);
     },
   };
 }
