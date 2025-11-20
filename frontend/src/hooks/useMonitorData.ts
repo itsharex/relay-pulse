@@ -21,6 +21,7 @@ interface UseMonitorDataOptions {
   filterService: string;
   filterProvider: string;
   filterChannel: string;
+  filterCategory: string;
   sortConfig: SortConfig;
 }
 
@@ -29,6 +30,7 @@ export function useMonitorData({
   filterService,
   filterProvider,
   filterChannel,
+  filterCategory,
   sortConfig,
 }: UseMonitorDataOptions) {
   const [loading, setLoading] = useState(true);
@@ -69,17 +71,18 @@ export function useMonitorData({
               timestamp: point.time,
               timestampNum: point.timestamp,  // Unix 时间戳（秒）
               latency: point.latency,
+              availability: point.availability,  // 可用率百分比
             }));
 
             const currentStatus = item.current_status
               ? statusMap[item.current_status.status] || 'UNAVAILABLE'
               : 'UNAVAILABLE';
 
-            // 计算可用率（MISSING按50%权重计入）
+            // 计算可用率（AVAILABLE 和 DEGRADED 都算成功，与后端逻辑一致）
             const uptimeScore = history.reduce((acc, point) => {
-              if (point.status === 'AVAILABLE') return acc + 1;      // 100%
-              if (point.status === 'MISSING') return acc + 0.5;      // 50%
-              return acc;                                             // 0% (UNAVAILABLE, DEGRADED)
+              if (point.status === 'AVAILABLE' || point.status === 'DEGRADED') return acc + 1;  // 100%
+              if (point.status === 'MISSING') return acc + 0.5;  // 50%
+              return acc;  // 0% (UNAVAILABLE)
             }, 0);
             const uptime = history.length > 0
               ? parseFloat(((uptimeScore / history.length) * 100).toFixed(1))
@@ -139,7 +142,8 @@ export function useMonitorData({
       const matchService = filterService === 'all' || item.serviceType === filterService;
       const matchProvider = filterProvider === 'all' || item.providerId === filterProvider;
       const matchChannel = filterChannel === 'all' || item.channel === filterChannel;
-      return matchService && matchProvider && matchChannel;
+      const matchCategory = filterCategory === 'all' || item.category === filterCategory;
+      return matchService && matchProvider && matchChannel && matchCategory;
     });
 
     if (sortConfig.key) {
@@ -159,7 +163,7 @@ export function useMonitorData({
     }
 
     return filtered;
-  }, [rawData, filterService, filterProvider, filterChannel, sortConfig]);
+  }, [rawData, filterService, filterProvider, filterChannel, filterCategory, sortConfig]);
 
   // 统计数据
   const stats = useMemo(() => {

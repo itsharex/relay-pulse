@@ -34,6 +34,18 @@ export function fetchMockMonitorData(timeRangeId: string): Promise<ProcessedMoni
             // 生成模拟延迟（缺失数据延迟为0）
             const latency = statusKey === 'MISSING' ? 0 : 180 + Math.floor(Math.random() * 220);
 
+            // 根据状态生成模拟可用率
+            let availability: number;
+            if (statusKey === 'MISSING') {
+              availability = -1;
+            } else if (statusKey === 'AVAILABLE') {
+              availability = 80 + Math.random() * 20;  // 80-100%
+            } else if (statusKey === 'DEGRADED') {
+              availability = 60 + Math.random() * 20;  // 60-80%
+            } else {
+              availability = Math.random() * 60;        // 0-60%
+            }
+
             const timestampMs = Date.now() - (count - index) * (rangeConfig.unit === 'hour' ? 3600000 : 86400000);
 
             return {
@@ -41,17 +53,18 @@ export function fetchMockMonitorData(timeRangeId: string): Promise<ProcessedMoni
               status: statusKey,
               timestamp: new Date(timestampMs).toISOString(),
               timestampNum: Math.floor(timestampMs / 1000),  // Unix 时间戳（秒）
-              latency
+              latency,
+              availability,
             };
           });
 
           const currentStatus = history[history.length - 1].status;
 
-          // 计算可用率（MISSING按50%权重计入）
+          // 计算可用率（AVAILABLE 和 DEGRADED 都算成功，与后端逻辑一致）
           const uptimeScore = history.reduce((acc, point) => {
-            if (point.status === 'AVAILABLE') return acc + 1;      // 100%
-            if (point.status === 'MISSING') return acc + 0.5;      // 50%
-            return acc;                                             // 0%
+            if (point.status === 'AVAILABLE' || point.status === 'DEGRADED') return acc + 1;  // 100%
+            if (point.status === 'MISSING') return acc + 0.5;  // 50%
+            return acc;  // 0% (UNAVAILABLE)
           }, 0);
           const uptime = history.length > 0
             ? parseFloat((uptimeScore / history.length * 100).toFixed(1))

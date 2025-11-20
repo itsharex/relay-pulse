@@ -1,5 +1,5 @@
-import { STATUS } from '../constants';
 import type { ProcessedMonitorData } from '../types';
+import { availabilityToStyle } from '../utils/color';
 
 // 直接使用 ProcessedMonitorData 中的 history 类型，确保字段完整性
 type HeatmapPoint = ProcessedMonitorData['history'][number];
@@ -21,8 +21,8 @@ export function HeatmapBlock({
 }: HeatmapBlockProps) {
   return (
     <div
-      className={`${height} rounded-sm transition-all duration-200 hover:scale-110 hover:z-10 cursor-pointer ${STATUS[point.status].color} opacity-80 hover:opacity-100`}
-      style={{ width }}
+      className={`${height} rounded-sm transition-all duration-200 hover:scale-110 hover:z-10 cursor-pointer opacity-80 hover:opacity-100`}
+      style={{ width, ...availabilityToStyle(point.availability) }}
       onMouseEnter={(e) => onHover(e, point)}
       onMouseLeave={onLeave}
     />

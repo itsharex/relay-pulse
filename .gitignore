@@ -24,6 +24,9 @@ coverage.html
 # Air hot reload temporary files
 tmp/
 
+# Logs
+*.log
+
 # Frontend build artifacts
 frontend/node_modules/
 frontend/dist/

@@ -1,9 +1,10 @@
 // API 响应类型定义
 export interface TimePoint {
-  time: string;       // 格式化时间标签（如 "15:04" 或 "2006-01-02"）
-  timestamp: number;  // Unix 时间戳（秒）
-  status: number;     // 1=可用, 0=不可用, 2=波动, -1=缺失
-  latency: number;    // 延迟(ms)
+  time: string;         // 格式化时间标签（如 "15:04" 或 "2006-01-02"）
+  timestamp: number;    // Unix 时间戳（秒）
+  status: number;       // 1=可用, 0=不可用, 2=波动, -1=缺失（bucket内最后一条）
+  latency: number;      // 平均延迟(ms)
+  availability: number; // 可用率百分比(0-100)，缺失时为 -1
 }
 
 export interface CurrentStatus {
@@ -63,6 +64,7 @@ export interface ProcessedMonitorData {
     timestamp: string;
     timestampNum: number;     // Unix 时间戳（秒）
     latency: number;
+    availability: number;     // 可用率百分比(0-100)，缺失时为 -1
   }>;
   currentStatus: StatusKey;
   uptime: number;             // 可用率百分比
@@ -102,6 +104,7 @@ export interface TooltipState {
     timestamp: string;
     timestampNum: number;  // Unix 时间戳（秒）
     latency: number;
+    availability: number;  // 可用率百分比(0-100)，缺失时为 -1
   } | null;
 }
 

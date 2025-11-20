@@ -50,14 +50,6 @@ export function StatusTable({
             </th>
             <th
               className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
-              onClick={() => onSort('category')}
-            >
-              <div className="flex items-center">
-                分类 <SortIcon columnKey="category" />
-              </div>
-            </th>
-            <th
-              className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
               onClick={() => onSort('sponsor')}
             >
               <div className="flex items-center">
@@ -99,7 +91,7 @@ export function StatusTable({
             <th className="p-4 font-medium">最后检测</th>
             <th className="p-4 font-medium w-1/3 min-w-[200px]">
               <div className="flex items-center gap-2">
-                历史趋势
+                质量趋势
                 <span className="text-[10px] normal-case opacity-50 border border-slate-700 px-1 rounded">
                   {currentTimeRange?.label}
                 </span>
@@ -110,17 +102,20 @@ export function StatusTable({
         <tbody className="divide-y divide-slate-800/50 text-sm">
           {data.map((item) => (
             <tr key={item.id} className="group hover:bg-slate-800/40 transition-colors">
-              <td className="p-4 font-medium text-slate-200">{item.providerName}</td>
-              <td className="p-4">
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide ${
-                    item.category === 'commercial'
-                      ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
-                      : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
-                  }`}
-                >
-                  {item.category === 'commercial' ? '推广站' : '公益站'}
-                </span>
+              <td className="p-4 font-medium text-slate-200">
+                <div className="flex items-center gap-2">
+                  <span>{item.providerName}</span>
+                  <span
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                      item.category === 'commercial'
+                        ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+                        : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
+                    }`}
+                    title={item.category === 'commercial' ? '推广站' : '公益站'}
+                  >
+                    {item.category === 'commercial' ? '推' : '益'}
+                  </span>
+                </div>
               </td>
               <td className="p-4 text-slate-300 text-sm">{item.sponsor}</td>
               <td className="p-4">

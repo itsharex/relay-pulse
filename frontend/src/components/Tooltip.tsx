@@ -24,8 +24,13 @@ export function Tooltip({ tooltip }: TooltipProps) {
         <div className={`font-bold text-sm ${STATUS[tooltip.data.status].text}`}>
           {STATUS[tooltip.data.status].label}
         </div>
+        {tooltip.data.availability >= 0 && (
+          <div className="text-slate-300 font-medium">
+            可用率: {tooltip.data.availability.toFixed(1)}%
+          </div>
+        )}
         {tooltip.data.latency > 0 && (
-          <div className="text-slate-500 text-[10px]">{tooltip.data.latency}ms</div>
+          <div className="text-slate-500 text-[10px]">延迟: {tooltip.data.latency}ms</div>
         )}
         {/* 小三角箭头 */}
         <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-r border-b border-slate-700 transform rotate-45"></div>

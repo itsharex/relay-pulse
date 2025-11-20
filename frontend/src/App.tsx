@@ -12,6 +12,7 @@ function App() {
   const [filterService, setFilterService] = useState('all');
   const [filterProvider, setFilterProvider] = useState('all');
   const [filterChannel, setFilterChannel] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
   const [timeRange, setTimeRange] = useState('24h');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'uptime', direction: 'desc' });
@@ -27,6 +28,7 @@ function App() {
     filterService,
     filterProvider,
     filterChannel,
+    filterCategory,
     sortConfig,
   });
 
@@ -75,6 +77,7 @@ function App() {
           filterProvider={filterProvider}
           filterService={filterService}
           filterChannel={filterChannel}
+          filterCategory={filterCategory}
           timeRange={timeRange}
           viewMode={viewMode}
           loading={loading}
@@ -82,6 +85,7 @@ function App() {
           onProviderChange={setFilterProvider}
           onServiceChange={setFilterService}
           onChannelChange={setFilterChannel}
+          onCategoryChange={setFilterCategory}
           onTimeRangeChange={setTimeRange}
           onViewModeChange={setViewMode}
           onRefresh={refetch}

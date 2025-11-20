@@ -15,11 +15,11 @@ tmp_dir = "tmp/air"
   # 如需自定义配置文件，请修改此行或使用 make run
   full_bin = "./tmp/air/monitor"
 
-  # 监听的文件扩展名（仅Go源代码）
+  # 监听的文件扩展名（仅 Go 源代码，配置由应用自己热更新）
   include_ext = ["go"]
 
-  # 排除的目录
-  exclude_dir = ["tmp", "frontend", "vendor", ".git", "scripts"]
+  # 排除的目录（data 不排除，以便监听配置变化）
+  exclude_dir = ["tmp", "frontend", "vendor", ".git", "scripts", "node_modules"]
 
   # 排除的文件正则
   exclude_regex = ["_test\\.go$"]

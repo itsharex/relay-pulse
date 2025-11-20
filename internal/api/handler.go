@@ -153,26 +153,37 @@ func (h *Handler) parsePeriod(period string) (time.Time, error) {
 	}
 }
 
-// buildTimeline 构建固定长度的时间轴，缺失数据用 Status=-1 标记
+// bucketStats 用于聚合每个 bucket 内的探测数据
+type bucketStats struct {
+	total      int                   // 总探测次数
+	success    int                   // 成功次数（status == 1 或 2）
+	latencySum int64                 // 延迟总和
+	last       *storage.ProbeRecord  // 最新一条记录
+}
+
+// buildTimeline 构建固定长度的时间轴，计算每个 bucket 的可用率和平均延迟
 func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string) []storage.TimePoint {
 	// 根据 period 确定 bucket 策略
 	bucketCount, bucketWindow, format := h.determineBucketStrategy(period)
 
 	now := time.Now()
 
-	// 初始化所有 bucket（缺失数据标记为 Status=-1）
+	// 初始化 buckets 和统计数据
 	buckets := make([]storage.TimePoint, bucketCount)
+	stats := make([]bucketStats, bucketCount)
+
 	for i := 0; i < bucketCount; i++ {
 		bucketTime := now.Add(-time.Duration(bucketCount-i) * bucketWindow)
 		buckets[i] = storage.TimePoint{
-			Time:      bucketTime.Format(format),
-			Timestamp: bucketTime.Unix(),
-			Status:    -1, // 缺失标记
-			Latency:   0,
+			Time:         bucketTime.Format(format),
+			Timestamp:    bucketTime.Unix(),
+			Status:       -1,  // 缺失标记
+			Latency:      0,
+			Availability: -1,  // 缺失标记
 		}
 	}
 
-	// 填充实际数据到对应的 bucket（取每个 bucket 最后一个记录）
+	// 聚合每个 bucket 的探测结果
 	for _, record := range records {
 		t := time.Unix(record.Timestamp, 0)
 		timeDiff := now.Sub(t)
@@ -192,12 +203,39 @@ func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string) [
 			continue
 		}
 
-		// 填充数据（如果已有数据，取较新的）
-		buckets[actualIndex] = storage.TimePoint{
-			Time:      t.Format(format),
-			Timestamp: record.Timestamp,
-			Status:    record.Status,
-			Latency:   record.Latency,
+		// 聚合统计
+		stat := &stats[actualIndex]
+		stat.total++
+		if record.Status == 1 || record.Status == 2 {
+			stat.success++
+		}
+		stat.latencySum += int64(record.Latency)
+
+		// 保留最新记录
+		if stat.last == nil || record.Timestamp > stat.last.Timestamp {
+			stat.last = record
+		}
+	}
+
+	// 根据聚合结果计算可用率和平均延迟
+	for i := 0; i < bucketCount; i++ {
+		stat := &stats[i]
+		if stat.total == 0 {
+			continue
+		}
+
+		// 计算可用率
+		buckets[i].Availability = (float64(stat.success) / float64(stat.total)) * 100
+
+		// 计算平均延迟（四舍五入）
+		avgLatency := float64(stat.latencySum) / float64(stat.total)
+		buckets[i].Latency = int(avgLatency + 0.5)
+
+		// 使用最新记录的状态和时间
+		if stat.last != nil {
+			buckets[i].Status = stat.last.Status
+			buckets[i].Timestamp = stat.last.Timestamp
+			buckets[i].Time = time.Unix(stat.last.Timestamp, 0).Format(format)
 		}
 	}
 

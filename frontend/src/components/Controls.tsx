@@ -6,6 +6,7 @@ interface ControlsProps {
   filterProvider: string;
   filterService: string;
   filterChannel: string;
+  filterCategory: string;
   timeRange: string;
   viewMode: ViewMode;
   loading: boolean;
@@ -13,6 +14,7 @@ interface ControlsProps {
   onProviderChange: (provider: string) => void;
   onServiceChange: (service: string) => void;
   onChannelChange: (channel: string) => void;
+  onCategoryChange: (category: string) => void;
   onTimeRangeChange: (range: string) => void;
   onViewModeChange: (mode: ViewMode) => void;
   onRefresh: () => void;
@@ -22,6 +24,7 @@ export function Controls({
   filterProvider,
   filterService,
   filterChannel,
+  filterCategory,
   timeRange,
   viewMode,
   loading,
@@ -29,6 +32,7 @@ export function Controls({
   onProviderChange,
   onServiceChange,
   onChannelChange,
+  onCategoryChange,
   onTimeRangeChange,
   onViewModeChange,
   onRefresh,
@@ -40,6 +44,16 @@ export function Controls({
         <div className="flex items-center gap-2 text-slate-400 text-sm font-medium px-2">
           <Filter size={16} />
         </div>
+
+        <select
+          value={filterCategory}
+          onChange={(e) => onCategoryChange(e.target.value)}
+          className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750"
+        >
+          <option value="all">所有分类</option>
+          <option value="public">公益站</option>
+          <option value="commercial">推广站</option>
+        </select>
 
         <select
           value={filterProvider}
