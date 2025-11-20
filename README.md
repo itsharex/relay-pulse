@@ -41,12 +41,14 @@ go mod tidy
 cp config.yaml.example config.yaml
 ```
 
-编辑 `config.yaml`，填入真实的 API Key：
+编辑 `config.yaml`，填入真实的 API Key 和必填字段：
 
 ```yaml
 monitors:
   - provider: "88code"
     service: "cc"
+    category: "commercial"       # 必填：commercial（推广站）或 public（公益站）
+    sponsor: "团队自有"          # 必填：提供 API Key 的赞助者
     url: "https://api.88code.com/v1/chat/completions"
     method: "POST"
     api_key: "sk-your-real-key"  # 修改这里
@@ -60,6 +62,11 @@ monitors:
         "max_tokens": 1
       }
 ```
+
+**⚠️ 配置迁移提示**：
+- `category` 和 `sponsor` 为**必填字段**，缺失将导致启动失败
+- 如果升级旧配置，请为每个 monitor 添加这两个字段
+- 参考 `config.yaml.example` 查看完整示例
 
 如果请求体较大，可将 JSON 放在 `data/` 目录并在 `body` 中引用：
 
@@ -140,6 +147,9 @@ vim config.yaml
     {
       "provider": "88code",
       "service": "cc",
+      "category": "commercial",
+      "sponsor": "团队自有",
+      "channel": "vip-channel",
       "current_status": {
         "status": 1,
         "latency": 234,
@@ -156,6 +166,11 @@ vim config.yaml
   ]
 }
 ```
+
+**字段说明**：
+- `category`: 分类，`commercial`（推广站）或 `public`（公益站）
+- `sponsor`: 赞助者名称
+- `channel`: 业务通道标识（可选）
 
 **Status 说明**：
 - `0` = 🔴 红色（服务不可用）
@@ -252,7 +267,36 @@ WantedBy=multi-user.target
 
 ## 开发
 
-### 快速开始
+### 开发模式（热重载）
+
+推荐使用 [cosmtrek/air](https://github.com/cosmtrek/air) 进行本地开发，代码修改后自动重新编译和重启：
+
+```bash
+# 首次使用：安装 air
+make install-air
+
+# 启动开发服务（监听 .go 文件变化）
+make dev
+```
+
+**工作原理**：
+- 监听 `cmd/` 和 `internal/` 目录下的 `.go` 文件
+- 文件变更后延迟 1 秒触发增量编译
+- 自动重启后端服务
+- 配置文件 `config.yaml` 仍由 `fsnotify` 热更新（互不干扰）
+
+**可用命令**：
+```bash
+make help         # 查看所有可用命令
+make build        # 编译生产版本
+make run          # 直接运行（无热重载）
+make dev          # 开发模式（需要air）
+make test         # 运行测试
+make fmt          # 格式化代码
+make clean        # 清理临时文件
+```
+
+### 快速开始（无热重载）
 
 ```bash
 # 安装 pre-commit
@@ -262,6 +306,9 @@ pre-commit install
 # 编译运行
 go build -o monitor ./cmd/server
 ./monitor
+
+# 或直接运行
+make run
 ```
 
 ### 代码检查

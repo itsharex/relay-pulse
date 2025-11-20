@@ -4,12 +4,14 @@ import { HeatmapBlock } from './HeatmapBlock';
 import { STATUS, TIME_RANGES } from '../constants';
 import type { ProcessedMonitorData, SortConfig } from '../types';
 
+type HistoryPoint = ProcessedMonitorData['history'][number];
+
 interface StatusTableProps {
   data: ProcessedMonitorData[];
   sortConfig: SortConfig;
   timeRange: string;
   onSort: (key: string) => void;
-  onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: any) => void;
+  onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
   onBlockLeave: () => void;
 }
 
@@ -48,10 +50,34 @@ export function StatusTable({
             </th>
             <th
               className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
+              onClick={() => onSort('category')}
+            >
+              <div className="flex items-center">
+                分类 <SortIcon columnKey="category" />
+              </div>
+            </th>
+            <th
+              className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
+              onClick={() => onSort('sponsor')}
+            >
+              <div className="flex items-center">
+                赞助者 <SortIcon columnKey="sponsor" />
+              </div>
+            </th>
+            <th
+              className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
               onClick={() => onSort('serviceType')}
             >
               <div className="flex items-center">
                 服务 <SortIcon columnKey="serviceType" />
+              </div>
+            </th>
+            <th
+              className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
+              onClick={() => onSort('channel')}
+            >
+              <div className="flex items-center">
+                通道 <SortIcon columnKey="channel" />
               </div>
             </th>
             <th
@@ -67,9 +93,10 @@ export function StatusTable({
               onClick={() => onSort('uptime')}
             >
               <div className="flex items-center">
-                可用率(质量) <SortIcon columnKey="uptime" />
+                可用率 <SortIcon columnKey="uptime" />
               </div>
             </th>
+            <th className="p-4 font-medium">最后检测</th>
             <th className="p-4 font-medium w-1/3 min-w-[200px]">
               <div className="flex items-center gap-2">
                 历史趋势
@@ -86,6 +113,18 @@ export function StatusTable({
               <td className="p-4 font-medium text-slate-200">{item.providerName}</td>
               <td className="p-4">
                 <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide ${
+                    item.category === 'commercial'
+                      ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+                      : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
+                  }`}
+                >
+                  {item.category === 'commercial' ? '推广站' : '公益站'}
+                </span>
+              </td>
+              <td className="p-4 text-slate-300 text-sm">{item.sponsor}</td>
+              <td className="p-4">
+                <span
                   className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border ${
                     item.serviceType === 'cc'
                       ? 'border-purple-500/30 text-purple-300 bg-purple-500/10'
@@ -96,6 +135,9 @@ export function StatusTable({
                   {item.serviceType === 'cx' && <Shield size={10} className="mr-1" />}
                   {item.serviceType.toUpperCase()}
                 </span>
+              </td>
+              <td className="p-4 text-slate-400 text-xs">
+                {item.channel || '-'}
               </td>
               <td className="p-4">
                 <div className="flex items-center gap-2">
@@ -117,6 +159,18 @@ export function StatusTable({
                 >
                   {item.uptime}%
                 </span>
+              </td>
+              <td className="p-4">
+                {item.lastCheckTimestamp ? (
+                  <div className="text-xs text-slate-400 font-mono flex flex-col gap-0.5">
+                    <span>{new Date(item.lastCheckTimestamp * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    {item.lastCheckLatency !== undefined && (
+                      <span className="text-slate-600 text-[10px]">{item.lastCheckLatency}ms</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-slate-600 text-xs">-</span>
+                )}
               </td>
               <td className="p-4">
                 <div className="flex gap-[2px] h-6 w-full max-w-xs">

@@ -6,11 +6,12 @@ import { StatusTable } from './components/StatusTable';
 import { StatusCard } from './components/StatusCard';
 import { Tooltip } from './components/Tooltip';
 import { useMonitorData } from './hooks/useMonitorData';
-import type { ViewMode, SortConfig, TooltipState } from './types';
+import type { ViewMode, SortConfig, TooltipState, ProcessedMonitorData } from './types';
 
 function App() {
   const [filterService, setFilterService] = useState('all');
   const [filterProvider, setFilterProvider] = useState('all');
+  const [filterChannel, setFilterChannel] = useState('all');
   const [timeRange, setTimeRange] = useState('24h');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'uptime', direction: 'desc' });
@@ -21,10 +22,11 @@ function App() {
     data: null,
   });
 
-  const { loading, error, data, stats, refetch } = useMonitorData({
+  const { loading, error, data, stats, channels, refetch } = useMonitorData({
     timeRange,
     filterService,
     filterProvider,
+    filterChannel,
     sortConfig,
   });
 
@@ -36,7 +38,10 @@ function App() {
     setSortConfig({ key, direction });
   };
 
-  const handleBlockHover = (e: React.MouseEvent<HTMLDivElement>, point: any) => {
+  const handleBlockHover = (
+    e: React.MouseEvent<HTMLDivElement>,
+    point: ProcessedMonitorData['history'][number]
+  ) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltip({
       show: true,
@@ -69,11 +74,14 @@ function App() {
         <Controls
           filterProvider={filterProvider}
           filterService={filterService}
+          filterChannel={filterChannel}
           timeRange={timeRange}
           viewMode={viewMode}
           loading={loading}
+          channels={channels}
           onProviderChange={setFilterProvider}
           onServiceChange={setFilterService}
+          onChannelChange={setFilterChannel}
           onTimeRangeChange={setTimeRange}
           onViewModeChange={setViewMode}
           onRefresh={refetch}

@@ -5,11 +5,14 @@ import type { ViewMode } from '../types';
 interface ControlsProps {
   filterProvider: string;
   filterService: string;
+  filterChannel: string;
   timeRange: string;
   viewMode: ViewMode;
   loading: boolean;
+  channels: string[];
   onProviderChange: (provider: string) => void;
   onServiceChange: (service: string) => void;
+  onChannelChange: (channel: string) => void;
   onTimeRangeChange: (range: string) => void;
   onViewModeChange: (mode: ViewMode) => void;
   onRefresh: () => void;
@@ -18,11 +21,14 @@ interface ControlsProps {
 export function Controls({
   filterProvider,
   filterService,
+  filterChannel,
   timeRange,
   viewMode,
   loading,
+  channels,
   onProviderChange,
   onServiceChange,
+  onChannelChange,
   onTimeRangeChange,
   onViewModeChange,
   onRefresh,
@@ -56,6 +62,19 @@ export function Controls({
           <option value="all">所有服务</option>
           <option value="cc">Claude Code (cc)</option>
           <option value="cx">Codex (cx)</option>
+        </select>
+
+        <select
+          value={filterChannel}
+          onChange={(e) => onChannelChange(e.target.value)}
+          className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750"
+        >
+          <option value="all">所有通道</option>
+          {channels.map((channel) => (
+            <option key={channel} value={channel}>
+              {channel}
+            </option>
+          ))}
         </select>
 
         <div className="w-px h-8 bg-slate-700 mx-2 hidden sm:block"></div>

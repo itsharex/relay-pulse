@@ -5,6 +5,9 @@ monitors:
   # --- 88code ---
   - provider: "88code"
     service: "cc"
+    category: "commercial"  # 必填：商业站(commercial) 或 公益站(public)
+    sponsor: "团队自有"      # 必填：提供 API Key 的赞助者
+    channel: "vip-channel"  # 业务通道标识（可选），用于分类和过滤
     url: "https://api.88code.com/v1/chat/completions"
     method: "POST"
     api_key: "sk-xxxxxxxx"  # 可通过环境变量 MONITOR_88CODE_CC_API_KEY 覆盖
@@ -20,6 +23,9 @@ monitors:
 
   - provider: "88code"
     service: "cx"
+    category: "public"           # 公益站
+    sponsor: "社区赞助"          # 由社区赞助者提供
+    channel: "standard-channel"
     url: "https://api.88code.com/v1/chat/completions"
     method: "POST"
     api_key: "sk-xxxxxxxx"
@@ -38,6 +44,9 @@ monitors:
   # --- DuckCoding (演示不同的 Header 格式) ---
   - provider: "duckcoding"
     service: "cc"
+    category: "commercial"
+    sponsor: "duckcoding官方"
+    channel: "vip-channel"
     url: "https://api.duckcoding.com/v1/messages"
     method: "POST"
     api_key: "sk-duck-xxxx"
@@ -55,6 +64,9 @@ monitors:
   # --- 引用 data/ 目录下 JSON 的示例 ---
   - provider: "demo"
     service: "codex"
+    category: "public"
+    sponsor: "示例数据"
+    channel: "test-channel"
     url: "https://88code.org/openai/v1/responses"
     method: "POST"
     api_key: "sk-demo"

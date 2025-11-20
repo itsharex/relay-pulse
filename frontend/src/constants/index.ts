@@ -32,6 +32,13 @@ export const STATUS: Record<string, StatusConfig> = {
     label: '波动',
     weight: 2,
   },
+  MISSING: {
+    color: 'bg-slate-400',
+    text: 'text-slate-400',
+    glow: 'shadow-[0_0_10px_rgba(148,163,184,0.4)]',
+    label: '无数据',
+    weight: 0.5,  // 50%可用权重
+  },
   UNAVAILABLE: {
     color: 'bg-rose-500',
     text: 'text-rose-400',

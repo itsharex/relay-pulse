@@ -12,6 +12,9 @@ import (
 type ServiceConfig struct {
 	Provider string            `yaml:"provider" json:"provider"`
 	Service  string            `yaml:"service" json:"service"`
+	Category string            `yaml:"category" json:"category"` // 分类：commercial（推广站）或 public（公益站）
+	Sponsor  string            `yaml:"sponsor" json:"sponsor"`   // 赞助者：提供 API Key 的个人或组织
+	Channel  string            `yaml:"channel" json:"channel"`   // 业务通道标识（如 "vip-channel"、"standard-channel"），用于分类和过滤
 	URL      string            `yaml:"url" json:"url"`
 	Method   string            `yaml:"method" json:"method"`
 	Headers  map[string]string `yaml:"headers" json:"headers"`
@@ -20,7 +23,7 @@ type ServiceConfig struct {
 	// SuccessContains 可选：响应体需包含的关键字，用于判定请求语义是否成功
 	SuccessContains string `yaml:"success_contains" json:"success_contains"`
 
-	// 解析后的“慢请求”阈值（来自全局配置），用于黄灯判定
+	// 解析后的"慢请求"阈值（来自全局配置），用于黄灯判定
 	SlowLatencyDuration time.Duration `yaml:"-" json:"-"`
 
 	APIKey string `yaml:"api_key" json:"-"` // 不返回给前端
@@ -65,11 +68,22 @@ func (c *AppConfig) Validate() error {
 		if m.Method == "" {
 			return fmt.Errorf("monitor[%d]: method 不能为空", i)
 		}
+		if m.Category == "" {
+			return fmt.Errorf("monitor[%d]: category 不能为空（必须是 commercial 或 public）", i)
+		}
+		if strings.TrimSpace(m.Sponsor) == "" {
+			return fmt.Errorf("monitor[%d]: sponsor 不能为空", i)
+		}
 
 		// Method 枚举检查
 		validMethods := map[string]bool{"GET": true, "POST": true, "PUT": true, "DELETE": true, "PATCH": true}
 		if !validMethods[strings.ToUpper(m.Method)] {
 			return fmt.Errorf("monitor[%d]: method '%s' 无效，必须是 GET/POST/PUT/DELETE/PATCH 之一", i, m.Method)
+		}
+
+		// Category 枚举检查
+		if !isValidCategory(m.Category) {
+			return fmt.Errorf("monitor[%d]: category '%s' 无效，必须是 commercial 或 public", i, m.Category)
 		}
 
 		// 唯一性检查
@@ -113,11 +127,13 @@ func (c *AppConfig) Normalize() error {
 		c.SlowLatencyDuration = d
 	}
 
-	// 将全局慢请求阈值下发到每个监控项
+	// 将全局慢请求阈值下发到每个监控项，并标准化 category
 	for i := range c.Monitors {
 		if c.Monitors[i].SlowLatencyDuration == 0 {
 			c.Monitors[i].SlowLatencyDuration = c.SlowLatencyDuration
 		}
+		// 标准化 category 为小写
+		c.Monitors[i].Category = strings.ToLower(c.Monitors[i].Category)
 	}
 
 	return nil
@@ -193,6 +209,12 @@ func (m *ServiceConfig) resolveBodyInclude(configDir string) error {
 
 	m.Body = string(content)
 	return nil
+}
+
+// isValidCategory 检查 category 是否为有效值
+func isValidCategory(category string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(category))
+	return normalized == "commercial" || normalized == "public"
 }
 
 // Clone 深拷贝配置（用于热更新回滚）

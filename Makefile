@@ -1,0 +1,102 @@
+# Makefile for LLM Monitor Service
+
+# Go parameters
+GOCMD=go
+GOBUILD=$(GOCMD) build
+GORUN=$(GOCMD) run
+GOTEST=$(GOCMD) test
+GOMOD=$(GOCMD) mod
+GOFMT=$(GOCMD) fmt
+
+# Binary name
+BINARY_NAME=monitor
+BINARY_PATH=./$(BINARY_NAME)
+
+# Main package
+MAIN_PACKAGE=./cmd/server
+
+# Air hot reload tool
+AIR_CMD=$(shell command -v air 2>/dev/null)
+
+# 配置文件（用于 run 命令）
+# 注意：make dev 使用 air，配置文件固定为 config.yaml
+# 如需自定义配置文件，请使用 make run 或直接运行 air
+CONFIG ?= config.yaml
+
+.PHONY: help build run dev test fmt clean install-air
+
+# 默认目标：显示帮助
+help:
+	@echo "可用命令:"
+	@echo "  make build       - 编译生产版本"
+	@echo "  make run         - 直接运行（无热重载）"
+	@echo "  make dev         - 开发模式（热重载，需要air）"
+	@echo "  make test        - 运行测试"
+	@echo "  make fmt         - 格式化代码"
+	@echo "  make clean       - 清理编译产物"
+	@echo "  make install-air - 安装air热重载工具"
+
+# 编译二进制
+build:
+	@echo "正在编译 $(BINARY_NAME)..."
+	$(GOBUILD) -o $(BINARY_PATH) $(MAIN_PACKAGE)
+	@echo "编译完成: $(BINARY_PATH)"
+
+# 直接运行（不编译）
+run:
+	@echo "正在启动监控服务..."
+	$(GORUN) $(MAIN_PACKAGE)
+
+# 开发模式（热重载）
+dev:
+	@if [ -z "$(AIR_CMD)" ]; then \
+		echo "错误: air 未安装"; \
+		echo ""; \
+		echo "请运行以下命令安装:"; \
+		echo "  make install-air"; \
+		echo ""; \
+		echo "或手动安装:"; \
+		echo "  go install github.com/cosmtrek/air@latest"; \
+		exit 1; \
+	fi
+	@echo "正在启动开发服务（热重载）..."
+	@echo "修改 .go 文件将自动重新编译"
+	$(AIR_CMD) -c .air.toml
+
+# 运行测试
+test:
+	@echo "正在运行测试..."
+	$(GOTEST) -v ./...
+
+# 运行测试（带覆盖率）
+test-coverage:
+	@echo "正在运行测试并生成覆盖率..."
+	$(GOTEST) -coverprofile=coverage.out ./...
+	$(GOCMD) tool cover -html=coverage.out -o coverage.html
+	@echo "覆盖率报告已生成: coverage.html"
+
+# 格式化代码
+fmt:
+	@echo "正在格式化代码..."
+	$(GOFMT) ./...
+	@echo "格式化完成"
+
+# 清理编译产物
+clean:
+	@echo "正在清理..."
+	@rm -f $(BINARY_PATH)
+	@rm -rf tmp/
+	@rm -f coverage.out coverage.html
+	@echo "清理完成"
+
+# 安装 air 热重载工具
+install-air:
+	@echo "正在安装 air..."
+	$(GOCMD) install github.com/cosmtrek/air@latest
+	@echo "安装完成！现在可以运行 'make dev'"
+
+# 整理依赖
+tidy:
+	@echo "正在整理依赖..."
+	$(GOMOD) tidy
+	@echo "依赖整理完成"

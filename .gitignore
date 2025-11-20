@@ -18,7 +18,11 @@ Thumbs.db
 
 # Test
 coverage.out
+coverage.html
 *.test
+
+# Air hot reload temporary files
+tmp/
 
 # Frontend build artifacts
 frontend/node_modules/

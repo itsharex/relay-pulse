@@ -13,12 +13,14 @@ const statusMap: Record<number, StatusKey> = {
   1: 'AVAILABLE',
   2: 'DEGRADED',
   0: 'UNAVAILABLE',
+  '-1': 'MISSING',  // 缺失数据
 };
 
 interface UseMonitorDataOptions {
   timeRange: string;
   filterService: string;
   filterProvider: string;
+  filterChannel: string;
   sortConfig: SortConfig;
 }
 
@@ -26,6 +28,7 @@ export function useMonitorData({
   timeRange,
   filterService,
   filterProvider,
+  filterChannel,
   sortConfig,
 }: UseMonitorDataOptions) {
   const [loading, setLoading] = useState(true);
@@ -64,6 +67,7 @@ export function useMonitorData({
               index,
               status: statusMap[point.status] || 'UNAVAILABLE',
               timestamp: point.time,
+              timestampNum: point.timestamp,  // Unix 时间戳（秒）
               latency: point.latency,
             }));
 
@@ -71,18 +75,29 @@ export function useMonitorData({
               ? statusMap[item.current_status.status] || 'UNAVAILABLE'
               : 'UNAVAILABLE';
 
-            // 计算可用率
-            const availableCount = history.filter((h) => h.status === 'AVAILABLE').length;
-            const uptime = parseFloat(((availableCount / history.length) * 100).toFixed(1));
+            // 计算可用率（MISSING按50%权重计入）
+            const uptimeScore = history.reduce((acc, point) => {
+              if (point.status === 'AVAILABLE') return acc + 1;      // 100%
+              if (point.status === 'MISSING') return acc + 0.5;      // 50%
+              return acc;                                             // 0% (UNAVAILABLE, DEGRADED)
+            }, 0);
+            const uptime = history.length > 0
+              ? parseFloat(((uptimeScore / history.length) * 100).toFixed(1))
+              : 0;
 
             return {
               id: `${item.provider}-${item.service}`,
               providerId: item.provider,
               providerName: item.provider,
               serviceType: item.service,
+              category: item.category,
+              sponsor: item.sponsor,
+              channel: item.channel || undefined,
               history,
               currentStatus,
               uptime,
+              lastCheckTimestamp: item.current_status?.timestamp,
+              lastCheckLatency: item.current_status?.latency,
             };
           });
         }
@@ -107,12 +122,24 @@ export function useMonitorData({
     };
   }, [timeRange, reloadToken]);
 
+  // 提取所有通道列表（去重并排序）
+  const channels = useMemo(() => {
+    const set = new Set<string>();
+    rawData.forEach((item) => {
+      if (item.channel) {
+        set.add(item.channel);
+      }
+    });
+    return Array.from(set).sort();
+  }, [rawData]);
+
   // 数据过滤和排序
   const processedData = useMemo(() => {
     const filtered = rawData.filter((item) => {
       const matchService = filterService === 'all' || item.serviceType === filterService;
       const matchProvider = filterProvider === 'all' || item.providerId === filterProvider;
-      return matchService && matchProvider;
+      const matchChannel = filterChannel === 'all' || item.channel === filterChannel;
+      return matchService && matchProvider && matchChannel;
     });
 
     if (sortConfig.key) {
@@ -132,7 +159,7 @@ export function useMonitorData({
     }
 
     return filtered;
-  }, [rawData, filterService, filterProvider, sortConfig]);
+  }, [rawData, filterService, filterProvider, filterChannel, sortConfig]);
 
   // 统计数据
   const stats = useMemo(() => {
@@ -147,6 +174,7 @@ export function useMonitorData({
     error,
     data: processedData,
     stats,
+    channels,
     refetch: () => {
       // 真正触发重新获取 - 修复刷新按钮无效的问题
       // 保持旧数据可见，直到新数据到来（与 docs/front.jsx 一致）

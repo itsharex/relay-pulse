@@ -38,6 +38,9 @@ type CurrentStatus struct {
 type MonitorResult struct {
 	Provider string              `json:"provider"`
 	Service  string              `json:"service"`
+	Category string              `json:"category"` // 分类：commercial（推广站）或 public（公益站）
+	Sponsor  string              `json:"sponsor"`  // 赞助者
+	Channel  string              `json:"channel"`  // 业务通道标识
 	Current  *CurrentStatus      `json:"current_status"`
 	Timeline []storage.TimePoint `json:"timeline"`
 }
@@ -117,6 +120,9 @@ func (h *Handler) GetStatus(c *gin.Context) {
 		response = append(response, MonitorResult{
 			Provider: task.Provider,
 			Service:  task.Service,
+			Category: task.Category,
+			Sponsor:  task.Sponsor,
+			Channel:  task.Channel,
 			Current:  current,
 			Timeline: timeline,
 		})
@@ -147,27 +153,69 @@ func (h *Handler) parsePeriod(period string) (time.Time, error) {
 	}
 }
 
-// buildTimeline 构建时间轴（从真实历史数据）
+// buildTimeline 构建固定长度的时间轴，缺失数据用 Status=-1 标记
 func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string) []storage.TimePoint {
-	var timeline []storage.TimePoint
+	// 根据 period 确定 bucket 策略
+	bucketCount, bucketWindow, format := h.determineBucketStrategy(period)
 
-	// 确定时间格式
-	format := "15:04"
-	if period == "7d" || period == "30d" {
-		format = "2006-01-02"
+	now := time.Now()
+
+	// 初始化所有 bucket（缺失数据标记为 Status=-1）
+	buckets := make([]storage.TimePoint, bucketCount)
+	for i := 0; i < bucketCount; i++ {
+		bucketTime := now.Add(-time.Duration(bucketCount-i) * bucketWindow)
+		buckets[i] = storage.TimePoint{
+			Time:      bucketTime.Format(format),
+			Timestamp: bucketTime.Unix(),
+			Status:    -1, // 缺失标记
+			Latency:   0,
+		}
 	}
 
-	// 转换记录
+	// 填充实际数据到对应的 bucket（取每个 bucket 最后一个记录）
 	for _, record := range records {
 		t := time.Unix(record.Timestamp, 0)
-		timeline = append(timeline, storage.TimePoint{
-			Time:    t.Format(format),
-			Status:  record.Status,
-			Latency: record.Latency,
-		})
+		timeDiff := now.Sub(t)
+
+		// 计算该记录属于哪个 bucket（从后往前）
+		bucketIndex := int(timeDiff / bucketWindow)
+		if bucketIndex < 0 {
+			bucketIndex = 0
+		}
+		if bucketIndex >= bucketCount {
+			continue // 超出范围，忽略
+		}
+
+		// 从前往后的索引
+		actualIndex := bucketCount - 1 - bucketIndex
+		if actualIndex < 0 || actualIndex >= bucketCount {
+			continue
+		}
+
+		// 填充数据（如果已有数据，取较新的）
+		buckets[actualIndex] = storage.TimePoint{
+			Time:      t.Format(format),
+			Timestamp: record.Timestamp,
+			Status:    record.Status,
+			Latency:   record.Latency,
+		}
 	}
 
-	return timeline
+	return buckets
+}
+
+// determineBucketStrategy 根据 period 确定 bucket 数量、窗口大小和时间格式
+func (h *Handler) determineBucketStrategy(period string) (count int, window time.Duration, format string) {
+	switch period {
+	case "24h", "1d":
+		return 24, time.Hour, "15:04"
+	case "7d":
+		return 7, 24 * time.Hour, "2006-01-02"
+	case "30d":
+		return 30, 24 * time.Hour, "2006-01-02"
+	default:
+		return 24, time.Hour, "15:04"
+	}
 }
 
 // UpdateConfig 更新配置（热更新时调用）
