@@ -134,12 +134,17 @@ func (p *Prober) determineStatus(statusCode, latency int, slowLatency time.Durat
 		return 1
 	}
 
+	// 400/401/403 = 灰色（未配置/认证失败）
+	if statusCode == 400 || statusCode == 401 || statusCode == 403 {
+		return 3
+	}
+
 	// 5xx 或 429 = 黄色（临时问题）
 	if statusCode >= 500 || statusCode == 429 {
 		return 2
 	}
 
-	// 其他（4xx等）= 红色（配置错误或认证失败）
+	// 其他4xx = 红色（客户端错误）
 	return 0
 }
 

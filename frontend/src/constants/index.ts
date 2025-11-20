@@ -12,7 +12,6 @@ export const PROVIDERS: Provider[] = [
 export const TIME_RANGES: TimeRange[] = [
   { id: '24h', label: '近24小时', points: 24, unit: 'hour' },
   { id: '7d', label: '近7天', points: 7, unit: 'day' },
-  { id: '15d', label: '近15天', points: 15, unit: 'day' },
   { id: '30d', label: '近30天', points: 30, unit: 'day' },
 ];
 
@@ -37,7 +36,7 @@ export const STATUS: Record<string, StatusConfig> = {
     text: 'text-slate-400',
     glow: 'shadow-[0_0_10px_rgba(148,163,184,0.4)]',
     label: '无数据',
-    weight: 0.5,  // 50%可用权重
+    weight: 1,  // 算作可用（避免初期可用率过低）
   },
   UNAVAILABLE: {
     color: 'bg-rose-500',

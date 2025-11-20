@@ -2,6 +2,7 @@ import { Activity, Clock, Zap, Shield } from 'lucide-react';
 import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
 import { STATUS } from '../constants';
+import { availabilityToColor } from '../utils/color';
 import type { ProcessedMonitorData } from '../types';
 
 type HistoryPoint = ProcessedMonitorData['history'][number];
@@ -41,9 +42,11 @@ export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: Stat
                 {item.serviceType.toUpperCase()}
               </span>
             </div>
-            <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 font-mono">
-              <Activity size={12} />
-              <span>可用率: {item.uptime}%</span>
+            <div className="flex items-center gap-2 mt-1 text-xs font-mono">
+              <Activity size={12} className="text-slate-400" />
+              <span style={{ color: availabilityToColor(item.uptime) }}>
+                可用率: {item.uptime}%
+              </span>
             </div>
           </div>
         </div>

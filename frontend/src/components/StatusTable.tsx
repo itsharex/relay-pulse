@@ -2,6 +2,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Zap, Shield } from 'lucide-react';
 import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
 import { STATUS, TIME_RANGES } from '../constants';
+import { availabilityToColor } from '../utils/color';
 import type { ProcessedMonitorData, SortConfig } from '../types';
 
 type HistoryPoint = ProcessedMonitorData['history'][number];
@@ -142,16 +143,8 @@ export function StatusTable({
                   </span>
                 </div>
               </td>
-              <td className="p-4 font-mono font-bold text-slate-200">
-                <span
-                  className={`${
-                    item.uptime >= 99
-                      ? 'text-emerald-400'
-                      : item.uptime >= 90
-                        ? 'text-amber-400'
-                        : 'text-rose-400'
-                  }`}
-                >
+              <td className="p-4 font-mono font-bold">
+                <span style={{ color: availabilityToColor(item.uptime) }}>
                   {item.uptime}%
                 </span>
               </td>

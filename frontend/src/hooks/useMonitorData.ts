@@ -13,6 +13,7 @@ const statusMap: Record<number, StatusKey> = {
   1: 'AVAILABLE',
   2: 'DEGRADED',
   0: 'UNAVAILABLE',
+  3: 'MISSING',  // 未配置/认证失败
   '-1': 'MISSING',  // 缺失数据
 };
 
@@ -78,14 +79,14 @@ export function useMonitorData({
               ? statusMap[item.current_status.status] || 'UNAVAILABLE'
               : 'UNAVAILABLE';
 
-            // 计算可用率（AVAILABLE 和 DEGRADED 都算成功，与后端逻辑一致）
-            const uptimeScore = history.reduce((acc, point) => {
-              if (point.status === 'AVAILABLE' || point.status === 'DEGRADED') return acc + 1;  // 100%
-              if (point.status === 'MISSING') return acc + 0.5;  // 50%
-              return acc;  // 0% (UNAVAILABLE)
-            }, 0);
+            // 计算可用率（取每个块的 availability 平均值）
+            // 负数（无数据）当作100%可用，避免刚开始监控时可用率过低
             const uptime = history.length > 0
-              ? parseFloat(((uptimeScore / history.length) * 100).toFixed(1))
+              ? parseFloat((
+                  history.reduce((acc, point) => {
+                    return acc + (point.availability < 0 ? 100 : point.availability);
+                  }, 0) / history.length
+                ).toFixed(2))
               : 0;
 
             return {

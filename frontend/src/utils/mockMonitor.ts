@@ -67,7 +67,7 @@ export function fetchMockMonitorData(timeRangeId: string): Promise<ProcessedMoni
             return acc;  // 0% (UNAVAILABLE)
           }, 0);
           const uptime = history.length > 0
-            ? parseFloat((uptimeScore / history.length * 100).toFixed(1))
+            ? parseFloat((uptimeScore / history.length * 100).toFixed(2))
             : 0;
 
           // 模拟通道名（按照 provider 分配）

@@ -1,5 +1,5 @@
-import { STATUS } from '../constants';
 import type { TooltipState } from '../types';
+import { availabilityToColor } from '../utils/color';
 
 interface TooltipProps {
   tooltip: TooltipState;
@@ -21,12 +21,12 @@ export function Tooltip({ tooltip }: TooltipProps) {
         <div className="text-slate-400">
           {new Date(tooltip.data.timestampNum * 1000).toLocaleString('zh-CN')}
         </div>
-        <div className={`font-bold text-sm ${STATUS[tooltip.data.status].text}`}>
-          {STATUS[tooltip.data.status].label}
-        </div>
         {tooltip.data.availability >= 0 && (
-          <div className="text-slate-300 font-medium">
-            可用率: {tooltip.data.availability.toFixed(1)}%
+          <div
+            className="font-medium"
+            style={{ color: availabilityToColor(tooltip.data.availability) }}
+          >
+            可用率: {tooltip.data.availability.toFixed(2)}%
           </div>
         )}
         {tooltip.data.latency > 0 && (
