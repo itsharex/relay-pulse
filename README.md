@@ -1,100 +1,94 @@
-# LLM Service Monitor - 企业级监控服务
+# Relay Pulse - LLM 服务可用性监控
 
-生产级 LLM 服务可用性监控系统，支持热更新、真实历史数据持久化。
+> **Audience**: 用户（部署和使用）| **Last reviewed**: 2025-11-21
 
-## 核心特性
+企业级 LLM 服务可用性监控系统，实时追踪服务状态并提供可视化仪表板。
 
-✅ **配置驱动** - YAML 配置，支持环境变量覆盖
-✅ **热更新** - 修改配置无需重启服务
-✅ **多后端存储** - 支持 SQLite 和 PostgreSQL，灵活切换
-✅ **云原生** - Kubernetes 友好，支持水平扩展
-✅ **并发安全** - HTTP 客户端池复用，防重复触发
-✅ **生产级质量** - 完整错误处理，优雅关闭
+![Status Dashboard](https://img.shields.io/badge/status-production-green) ![License](https://img.shields.io/badge/license-MIT-blue)
 
-## 项目结构
+## ✨ 核心特性
 
-```
-monitor/
-├── cmd/server/main.go          # 入口
-├── internal/
-│   ├── config/                 # 配置管理（验证、热更新、环境变量）
-│   ├── storage/                # 存储层（SQLite/PostgreSQL 抽象）
-│   │   ├── storage.go          # 存储接口定义
-│   │   ├── factory.go          # 工厂模式
-│   │   ├── sqlite.go           # SQLite 实现
-│   │   └── postgres.go         # PostgreSQL 实现
-│   ├── monitor/                # 监控引擎（HTTP 客户端池、探测）
-│   ├── scheduler/              # 调度器（防重复、并发控制）
-│   └── api/                    # API 层（gin、历史查询）
-├── config.yaml                 # 配置文件
-├── docker-compose.yaml         # Docker Compose（支持双后端）
-└── Dockerfile                  # 多阶段构建
-```
+- **📊 实时监控** - 多服务并发健康检查，实时状态追踪
+- **🔄 配置热更新** - 修改配置无需重启，立即生效
+- **💾 多存储后端** - 支持 SQLite（单机）和 PostgreSQL（K8s）
+- **📈 历史数据** - 24小时/7天/30天可用率统计
+- **🎨 可视化仪表板** - React + Tailwind CSS，响应式设计
+- **🐳 云原生** - Docker/K8s 就绪，支持水平扩展
 
-## 快速部署
+## 🚀 快速开始
 
-### 🚀 Docker 一键启动（推荐）
+### Docker 部署（推荐）
 
 ```bash
-# 1. 下载配置
+# 1. 下载配置文件
 curl -O https://raw.githubusercontent.com/prehisle/relay-pulse/main/docker-compose.yaml
 curl -O https://raw.githubusercontent.com/prehisle/relay-pulse/main/config.yaml.example
 
-# 2. 下载 data 目录（包含 JSON 模板文件）
-mkdir -p data
-curl -o data/cc_base.json https://raw.githubusercontent.com/prehisle/relay-pulse/main/data/cc_base.json
-curl -o data/cx_base.json https://raw.githubusercontent.com/prehisle/relay-pulse/main/data/cx_base.json
-
-# 3. 准备配置
+# 2. 准备配置
 cp config.yaml.example config.yaml
-vim config.yaml  # 填入你的 API Key
+vi config.yaml  # 填入你的 API Key
 
-# 4. 取消注释 data 目录挂载（编辑 docker-compose.yaml）
-# 找到这一行并取消注释:
-#   - ./data:/app/data:ro
-
-# 5. 一键启动
+# 3. 启动服务
 docker compose up -d
 
-# 6. 访问服务
+# 4. 访问 Web 界面
 open http://localhost:8080
 ```
 
-**详细教程**: 📖 [QUICKSTART.md](QUICKSTART.md)
+**🎬 完整安装教程**：[docs/user/install.md](docs/user/install.md)
 
----
-
-### 📦 本地开发
-
-#### 1. 安装依赖
+### 本地开发
 
 ```bash
+# 安装依赖
 go mod tidy
-cd frontend && npm install
-```
+cd frontend && npm install && cd ..
 
-#### 2. 配置服务
-
-复制示例配置：
-
-```bash
+# 准备配置
 cp config.yaml.example config.yaml
+
+# 启动开发服务（带热重载）
+make dev
+
+# 或直接运行
+go run cmd/server/main.go
 ```
 
-编辑 `config.yaml`，填入真实的 API Key 和必填字段：
+**👨‍💻 开发者指南**：[docs/developer/overview.md](docs/developer/overview.md)
+
+## 📖 文档导航
+
+### 用户文档
+- [安装指南](docs/user/install.md) - Docker/K8s/二进制部署
+- [配置手册](docs/user/config.md) - YAML 配置、环境变量、安全实践
+- [运维手册](docs/user/operations.md) - 健康检查、备份恢复、故障排查
+
+### 开发者文档
+- [架构概览](docs/developer/overview.md) - 系统设计、模块说明
+- [开发工作流](docs/developer/workflow.md) - 本地开发、测试、发布流程
+- [贡献指南](CONTRIBUTING.md) - 代码规范、提交规范
+
+### 参考文档
+- [API 规范](docs/reference/api.md) - REST API 端点和响应格式
+- [发布流程](docs/reference/release.md) - 版本管理、构建打包
+
+## 🔧 配置示例
 
 ```yaml
+# config.yaml
+interval: "1m"         # 检查频率
+slow_latency: "5s"     # 慢请求阈值
+
 monitors:
   - provider: "88code"
     service: "cc"
-    category: "commercial"       # 必填：commercial（推广站）或 public（公益站）
-    sponsor: "团队自有"          # 必填：提供 API Key 的赞助者
+    category: "commercial"
+    sponsor: "团队自有"
     url: "https://api.88code.com/v1/chat/completions"
     method: "POST"
-    api_key: "sk-your-real-key"  # 修改这里
+    api_key: "sk-xxx"  # 或通过环境变量 MONITOR_88CODE_CC_API_KEY
     headers:
       Authorization: "Bearer {{API_KEY}}"
-      Content-Type: "application/json"
     body: |
       {
         "model": "claude-3-opus",
@@ -103,511 +97,69 @@ monitors:
       }
 ```
 
-**⚠️ 配置迁移提示**：
-- `category` 和 `sponsor` 为**必填字段**，缺失将导致启动失败
-- 如果升级旧配置，请为每个 monitor 添加这两个字段
-- 参考 `config.yaml.example` 查看完整示例
+**详细配置说明**：[docs/user/config.md](docs/user/config.md)
 
-如果请求体较大，可将 JSON 放在 `data/` 目录并在 `body` 中引用：
+## 🗄️ 存储后端
 
-```yaml
-body: "!include data/cx_base.json"  # 路径必须位于 data/ 下
-```
-
-### 3. 配置巡检间隔
-
-可以在根级配置巡检频率（默认 1 分钟一次）：
-
-```yaml
-interval: "1m"  # 支持 Go duration 格式，例如 "30s"、"1m"、"5m"
-```
-
-修改保存后，调度器会在下一轮自动使用新的间隔。
-
-### 4. 运行服务
+| 后端       | 适用场景            | 优点                   |
+|------------|---------------------|------------------------|
+| **SQLite** | 单机部署、开发环境  | 零配置，开箱即用       |
+| **PostgreSQL** | K8s、多副本部署 | 高可用、水平扩展       |
 
 ```bash
-go run cmd/server/main.go
+# SQLite（默认）
+docker compose up -d monitor
+
+# PostgreSQL
+docker compose up -d postgres monitor-pg
 ```
 
-### 5. 测试 API
+## 📊 API 端点
 
 ```bash
-# 获取所有监控状态（24小时）
-curl "http://localhost:8080/api/status"
+# 获取监控状态（24小时）
+curl http://localhost:8080/api/status
 
 # 获取 7 天历史
-curl "http://localhost:8080/api/status?period=7d"
-
-# 过滤特定 provider
-curl "http://localhost:8080/api/status?provider=88code"
+curl http://localhost:8080/api/status?period=7d
 
 # 健康检查
-curl "http://localhost:8080/health"
+curl http://localhost:8080/health
+
+# 版本信息
+curl http://localhost:8080/api/version
 ```
 
-## 环境变量支持
+**完整 API 文档**：[docs/reference/api.md](docs/reference/api.md)
 
-可通过环境变量覆盖 API Key（更安全）：
+## 🛠️ 技术栈
 
-```bash
-export MONITOR_88CODE_CC_API_KEY="sk-real-key"
-export MONITOR_DUCKCODING_CC_API_KEY="sk-duck-key"
+**后端**
+- Go 1.24+
+- Gin (HTTP framework)
+- SQLite / PostgreSQL
+- fsnotify (配置热更新)
 
-go run cmd/server/main.go
-```
+**前端**
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Vite
 
-命名规则：`MONITOR_<PROVIDER>_<SERVICE>_API_KEY`（大写，`-` 替换为 `_`）
+## 📝 变更日志
 
-## 数据库配置
+查看 [CHANGELOG.md](CHANGELOG.md) 了解版本历史和最新变更。
 
-系统支持 **SQLite** 和 **PostgreSQL** 两种存储后端，通过配置文件或环境变量灵活切换。
+## 🤝 贡献
 
-### SQLite（默认，单机部署）
+欢迎提交 Issue 和 Pull Request！请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-适用于单机部署、开发环境和小规模监控。
+## 📄 许可证
 
-```yaml
-# config.yaml
-storage:
-  type: "sqlite"
-  sqlite:
-    path: "monitor.db"
-```
+[MIT License](LICENSE) © 2025
 
-**优点**：
-- 零配置，开箱即用
-- 无需额外服务依赖
-- 适合快速启动和测试
+---
 
-**限制**：
-- 不支持多副本部署
-- Kubernetes 环境需要 StatefulSet + PV
-
-### PostgreSQL（K8s/生产环境推荐）
-
-适用于 Kubernetes 多副本部署、高可用场景。
-
-```yaml
-# config.yaml
-storage:
-  type: "postgres"
-  postgres:
-    host: "postgres-service"
-    port: 5432
-    user: "monitor"
-    password: "secret"  # 建议使用环境变量
-    database: "llm_monitor"
-    sslmode: "disable"  # 生产环境建议 "require"
-    max_open_conns: 25
-    max_idle_conns: 5
-    conn_max_lifetime: "1h"
-```
-
-**通过环境变量配置**（推荐）：
-
-```bash
-export MONITOR_STORAGE_TYPE=postgres
-export MONITOR_POSTGRES_HOST=postgres-service
-export MONITOR_POSTGRES_USER=monitor
-export MONITOR_POSTGRES_PASSWORD=your_secure_password
-export MONITOR_POSTGRES_DATABASE=llm_monitor
-
-./monitor
-```
-
-**优点**：
-- ✅ 支持水平扩展（多副本）
-- ✅ 高可用和主从复制
-- ✅ 完整的 ACID 事务
-- ✅ 成熟的备份恢复方案
-- ✅ 云原生数据库支持（AWS RDS、Google Cloud SQL 等）
-
-**初始化 PostgreSQL**：
-
-```sql
-CREATE DATABASE llm_monitor;
-CREATE USER monitor WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE llm_monitor TO monitor;
-```
-
-系统会在首次启动时自动创建表结构和索引。
-
-## 热更新
-
-修改 `config.yaml` 后保存，服务会自动重载：
-
-```bash
-# 修改配置
-vim config.yaml
-
-# 观察日志
-# [Config] 检测到配置文件变更，正在重载...
-# [Config] 热更新成功！已加载 3 个监控任务
-# [Scheduler] 配置已更新，下次巡检将使用新配置
-```
-
-如果配置错误，服务会保持旧配置并输出错误日志。
-
-## API 响应格式
-
-```json
-{
-  "meta": {
-    "period": "24h",
-    "count": 3
-  },
-  "data": [
-    {
-      "provider": "88code",
-      "service": "cc",
-      "category": "commercial",
-      "sponsor": "团队自有",
-      "channel": "vip-channel",
-      "current_status": {
-        "status": 1,
-        "latency": 234,
-        "timestamp": 1735559123
-      },
-      "timeline": [
-        {
-          "time": "14:30",
-          "status": 1,
-          "latency": 234
-        }
-      ]
-    }
-  ]
-}
-```
-
-**字段说明**：
-- `category`: 分类，`commercial`（推广站）或 `public`（公益站）
-- `sponsor`: 赞助者名称
-- `channel`: 业务通道标识（可选）
-
-**Status 说明**：
-- `0` = 🔴 红色（服务不可用）
-- `1` = 🟢 绿色（正常）
-- `2` = 🟡 黄色（延迟高或临时错误）
-
-## 高级特性
-
-### 占位符替换
-
-`{{API_KEY}}` 在 **headers 和 body** 中都会被替换：
-
-```yaml
-headers:
-  Authorization: "Bearer {{API_KEY}}"
-body: |
-  {"api_key": "{{API_KEY}}", "model": "gpt-4"}
-```
-
-### 配置验证
-
-服务启动时会验证：
-- 必填字段（provider, service, url, method）
-- Method 枚举（GET/POST/PUT/DELETE/PATCH）
-- Provider+Service 唯一性
-
-### 数据清理
-
-自动清理 30 天前的历史数据（每天执行一次）。
-
-### 优雅关闭
-
-`Ctrl+C` 时会：
-1. 停止调度器
-2. 完成进行中的探测
-3. 关闭 HTTP 服务器
-4. 关闭数据库连接
-
-## 生产部署建议
-
-### 快速预览
-
-- **域名**: `relaypulse.top`
-- **仓库**: https://github.com/prehisle/relay-pulse.git
-- **架构**: Nginx（静态文件 + API 反向代理）→ Go 后端（监听 8080）→ SQLite/PostgreSQL
-
-> 📖 **完整部署指南**：请查看 [docs/deployment.md](docs/deployment.md) 获取详细的生产环境部署步骤、安全加固、监控维护等内容。
-
-### 部署前置准备
-
-1. **配置文件**：
-   ```bash
-   cp config.yaml.example config.production.yaml
-   cp deploy/relaypulse.env.example deploy/relaypulse.env
-   ```
-
-2. **前端环境变量**（`frontend/.env.production`）：
-   ```bash
-   VITE_API_BASE_URL=https://relaypulse.top
-   VITE_USE_MOCK_DATA=false
-   ```
-
-3. **数据持久化目录**：
-   ```bash
-   mkdir -p monitor
-   ```
-
-### Docker 部署（推荐）
-
-#### 方式一：使用 GitHub Container Registry 镜像
-
-```bash
-# 拉取最新镜像
-docker pull ghcr.io/prehisle/relay-pulse:latest
-
-# 使用 Docker Compose 启动（推荐）
-docker compose --env-file deploy/relaypulse.env up -d monitor
-
-# 或手动启动
-docker run -d \
-  --name relaypulse-monitor \
-  -p 8080:8080 \
-  -v $(pwd)/config.production.yaml:/config/config.yaml:ro \
-  -v $(pwd)/monitor:/app/monitor-data \
-  --env-file deploy/relaypulse.env \
-  ghcr.io/prehisle/relay-pulse:latest
-```
-
-#### 方式二：本地构建镜像
-
-```bash
-# 构建镜像（多架构支持）
-docker build -t relay-pulse:latest .
-
-# 启动容器
-docker run -d \
-  --name relaypulse-monitor \
-  -p 8080:8080 \
-  -v $(pwd)/config.production.yaml:/config/config.yaml:ro \
-  -v $(pwd)/monitor:/app/monitor-data \
-  --env-file deploy/relaypulse.env \
-  relay-pulse:latest
-```
-
-#### Docker Compose 部署
-
-项目根目录已包含 `docker-compose.yaml`：
-
-**常用操作**：
-```bash
-# SQLite 模式（默认）
-docker compose --env-file deploy/relaypulse.env up -d monitor
-
-# PostgreSQL 模式（需先取消注释 postgres 和 monitor-pg 配置）
-docker compose --env-file deploy/relaypulse.env up -d postgres monitor-pg
-
-# 查看日志
-docker compose logs -f monitor        # SQLite 模式
-docker compose logs -f monitor-pg     # PostgreSQL 模式
-
-# 重启服务（配置更新后）
-docker compose restart monitor
-
-# 停止服务
-docker compose down
-```
-
-#### PostgreSQL 模式部署
-
-适用于 Kubernetes 或多副本部署场景：
-
-```bash
-# 1. 在 deploy/relaypulse.env 中设置:
-#    MONITOR_STORAGE_TYPE=postgres
-#    MONITOR_POSTGRES_HOST=postgres
-#    MONITOR_POSTGRES_USER=monitor
-#    MONITOR_POSTGRES_PASSWORD=your_secure_password
-#    MONITOR_POSTGRES_DATABASE=llm_monitor
-
-# 2. 启动 PostgreSQL 和监控服务
-docker compose --env-file deploy/relaypulse.env up -d postgres monitor-pg
-
-# 3. 验证连接
-docker compose logs -f monitor-pg
-# 输出应包含: ✅ postgres 存储已就绪
-
-# 4. 查看数据库
-docker compose exec postgres psql -U monitor -d llm_monitor -c "SELECT COUNT(*) FROM probe_history;"
-```
-
-### Systemd 服务
-
-```ini
-[Unit]
-Description=Relay Pulse Monitor
-After=network.target
-
-[Service]
-Type=simple
-User=monitor
-WorkingDirectory=/opt/relay-pulse
-EnvironmentFile=/etc/relay-pulse.env
-ExecStart=/opt/relay-pulse/monitor /opt/relay-pulse/config/config.production.yaml
-Restart=always
-RestartSec=10
-LimitNOFILE=4096
-
-# 安全加固
-ProtectSystem=strict
-ProtectHome=yes
-ReadWritePaths=/opt/relay-pulse/monitor
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**启动服务**：
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable relay-pulse.service
-sudo systemctl start relay-pulse.service
-sudo systemctl status relay-pulse.service
-```
-
-### 前端部署
-
-```bash
-# 构建前端
-cd frontend
-npm ci
-npm run build
-
-# 上传到服务器
-rsync -av dist/ user@relaypulse.top:/var/www/relaypulse.top/dist/
-```
-
-**Nginx 配置示例**（`/etc/nginx/sites-available/relaypulse.top`）：
-
-```nginx
-server {
-    listen 80;
-    listen 443 ssl http2;
-    server_name relaypulse.top;
-
-    # SSL 证书
-    ssl_certificate /etc/letsencrypt/live/relaypulse.top/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/relaypulse.top/privkey.pem;
-
-    # 静态文件
-    root /var/www/relaypulse.top/dist;
-    index index.html;
-
-    # API 反向代理
-    location /api/ {
-        proxy_pass http://127.0.0.1:8080/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 健康检查
-    location /health {
-        proxy_pass http://127.0.0.1:8080/health;
-    }
-
-    # SPA 路由支持
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-### 安全提示
-
-- ✅ 所有 API Key 使用环境变量，禁止提交到 Git
-- ✅ `deploy/relaypulse.env` 必须加入 `.gitignore`
-- ✅ 启用 HTTPS 和 HSTS（参见 `docs/deployment.md`）
-- ✅ 配置 CORS 仅允许 `https://relaypulse.top`（参见 `internal/api/server.go`）
-- ✅ PostgreSQL 使用 `sslmode=require`
-
-### 部署验证清单
-
-- [ ] `curl -I https://relaypulse.top/` 返回 200
-- [ ] `curl https://relaypulse.top/api/status` 返回 JSON 数据
-- [ ] 浏览器访问 `https://relaypulse.top` 显示仪表板
-- [ ] 后端服务状态正常：`systemctl status relay-pulse` 或 `docker compose ps`
-- [ ] 数据库有数据：`sqlite3 monitor/monitor.db 'SELECT COUNT(*) FROM probe_history;'`
-- [ ] 配置热更新生效：修改 `config.production.yaml`，观察日志
-
-## 技术栈
-
-- **Web 框架**：gin
-- **数据库**：SQLite (modernc.org/sqlite - 纯 Go)
-- **配置**：yaml.v3
-- **热更新**：fsnotify
-- **CORS**：gin-contrib/cors
-
-## 开发
-
-### 开发模式（热重载）
-
-推荐使用 [cosmtrek/air](https://github.com/cosmtrek/air) 进行本地开发，代码修改后自动重新编译和重启：
-
-```bash
-# 首次使用：安装 air
-make install-air
-
-# 启动开发服务（监听 .go 文件变化）
-make dev
-```
-
-**工作原理**：
-- 监听 `cmd/` 和 `internal/` 目录下的 `.go` 文件
-- 文件变更后延迟 1 秒触发增量编译
-- 自动重启后端服务
-- 配置文件 `config.yaml` 仍由 `fsnotify` 热更新（互不干扰）
-
-**可用命令**：
-```bash
-make help         # 查看所有可用命令
-make build        # 编译生产版本
-make run          # 直接运行（无热重载）
-make dev          # 开发模式（需要air）
-make test         # 运行测试
-make fmt          # 格式化代码
-make clean        # 清理临时文件
-```
-
-### 快速开始（无热重载）
-
-```bash
-# 安装 pre-commit
-pip install pre-commit
-pre-commit install
-
-# 编译运行
-go build -o monitor ./cmd/server
-./monitor
-
-# 或直接运行
-make run
-```
-
-### 代码检查
-
-```bash
-# 手动运行所有检查
-pre-commit run --all-files
-
-# 单独检查
-go fmt ./...
-go vet ./...
-go test ./...
-```
-
-### 详细指南
-
-查看 [CONTRIBUTING.md](CONTRIBUTING.md) 获取完整的开发者指南，包括：
-
-- 项目结构说明
-- 代码规范
-- 提交规范
-- 常见问题
-
-## 许可
-
-MIT
+**🌐 在线演示**: https://relaypulse.top
+**📦 镜像仓库**: `ghcr.io/prehisle/relay-pulse:latest`
+**💬 问题反馈**: https://github.com/prehisle/relay-pulse/issues

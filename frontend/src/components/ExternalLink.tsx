@@ -1,9 +1,11 @@
 import { ExternalLink as ExternalLinkIcon, AlertTriangle } from 'lucide-react';
+import { trackEvent } from '../utils/analytics';
 
 interface ExternalLinkProps {
   href: string | null | undefined;
   children: React.ReactNode;
   className?: string;
+  trackLabel?: string;
 }
 
 /**
@@ -12,7 +14,7 @@ interface ExternalLinkProps {
  * - 显示外链图标
  * - HTTP 链接显示警告图标
  */
-export function ExternalLink({ href, children, className = '' }: ExternalLinkProps) {
+export function ExternalLink({ href, children, className = '', trackLabel }: ExternalLinkProps) {
   // 如果没有 URL，显示纯文本
   if (!href) {
     return <span className={className}>{children}</span>;
@@ -20,12 +22,22 @@ export function ExternalLink({ href, children, className = '' }: ExternalLinkPro
 
   const isHttp = href.startsWith('http://');
 
+  const handleClick = () => {
+    if (trackLabel) {
+      trackEvent('click_external_link', {
+        label: trackLabel,
+        url: href,
+      });
+    }
+  };
+
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       className={`inline-flex items-center gap-1 hover:underline ${className}`}
+      onClick={handleClick}
     >
       {children}
       <ExternalLinkIcon size={12} className="flex-shrink-0" />

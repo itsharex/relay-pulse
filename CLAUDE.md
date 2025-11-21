@@ -4,9 +4,21 @@
 
 ## 项目概览
 
-这是一个企业级 LLM 服务可用性监控系统，支持配置热更新、SQLite 持久化和实时状态追踪。项目包含：
-- **后端**: 基于 Go 的监控服务，提供 HTTP 健康检查
-- **前端**: React + TypeScript + Tailwind CSS 仪表板
+这是一个企业级 LLM 服务可用性监控系统，支持配置热更新、SQLite/PostgreSQL 持久化和实时状态追踪。
+
+### 项目文档
+
+- **README.md** - 项目简介和快速开始
+- **docs/user/** - 用户文档（安装、配置、运维）
+- **docs/developer/** - 开发者文档（架构、工作流）
+- **CONTRIBUTING.md** - 贡献指南
+
+**注意**: 历史开发笔记已归档到 `archive/` 目录，不再维护。
+
+### 技术栈
+
+- **后端**: Go 1.24+ (Gin, fsnotify, SQLite/PostgreSQL)
+- **前端**: React 19, TypeScript, Tailwind CSS v4, Vite
 
 ## 开发命令
 

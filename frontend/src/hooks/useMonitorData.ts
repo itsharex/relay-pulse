@@ -7,6 +7,7 @@ import type {
 } from '../types';
 import { API_BASE_URL, STATUS, USE_MOCK_DATA } from '../constants';
 import { fetchMockMonitorData } from '../utils/mockMonitor';
+import { trackAPIPerformance, trackAPIError } from '../utils/analytics';
 
 // URL 二次校验函数
 function validateUrl(url: string | undefined): string | null {
@@ -68,13 +69,20 @@ export function useMonitorData({
         } else {
           // 使用真实 API
           const url = `${API_BASE_URL}/api/status?period=${timeRange}`;
+          const startTime = performance.now();
+
           const response = await fetch(url);
+          const duration = Math.round(performance.now() - startTime);
 
           if (!response.ok) {
+            trackAPIError('/api/status', `HTTP ${response.status}`, response.statusText);
             throw new Error(`HTTP error! status: ${response.status}`);
           }
 
           const json: ApiResponse = await response.json();
+
+          // 追踪 API 性能
+          trackAPIPerformance('/api/status', duration, true);
 
           // 转换为前端数据格式
           processed = json.data.map((item) => {
@@ -125,7 +133,13 @@ export function useMonitorData({
         setRawData(processed);
       } catch (err) {
         if (!isMounted) return;
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError(errorMessage);
+
+        // 追踪网络错误
+        if (!USE_MOCK_DATA) {
+          trackAPIError('/api/status', 'Network Error', errorMessage);
+        }
       } finally {
         if (isMounted) {
           setLoading(false);

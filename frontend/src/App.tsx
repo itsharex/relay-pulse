@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Server } from 'lucide-react';
 import { Header } from './components/Header';
 import { Controls } from './components/Controls';
@@ -6,6 +6,7 @@ import { StatusTable } from './components/StatusTable';
 import { StatusCard } from './components/StatusCard';
 import { Tooltip } from './components/Tooltip';
 import { useMonitorData } from './hooks/useMonitorData';
+import { trackPeriodChange, trackServiceFilter, trackViewServiceDetail } from './utils/analytics';
 import type { ViewMode, SortConfig, TooltipState, ProcessedMonitorData } from './types';
 
 function App() {
@@ -31,6 +32,19 @@ function App() {
     filterCategory,
     sortConfig,
   });
+
+  // 追踪时间范围变化
+  useEffect(() => {
+    trackPeriodChange(timeRange);
+  }, [timeRange]);
+
+  // 追踪服务筛选变化
+  useEffect(() => {
+    trackServiceFilter(
+      filterProvider !== 'all' ? filterProvider : undefined,
+      filterService !== 'all' ? filterService : undefined
+    );
+  }, [filterProvider, filterService]);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'desc';
