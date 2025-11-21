@@ -41,9 +41,22 @@ COPY internal/ ./internal/
 # 从前端构建阶段复制构建产物到 Go embed 目录
 COPY --from=frontend-builder /build/dist ./internal/api/frontend/dist
 
-# 编译静态二进制文件 (前端文件已嵌入)
+# 获取构建时间和版本信息
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+
+# 编译静态二进制文件 (前端文件已嵌入，注入版本信息)
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH:-amd64} \
-    go build -ldflags="-s -w" -o /build/monitor ./cmd/server
+    go build \
+    -ldflags="-s -w \
+    -X main.Version=${VERSION} \
+    -X main.GitCommit=${GIT_COMMIT} \
+    -X main.BuildTime=${BUILD_TIME} \
+    -X monitor/internal/api.Version=${VERSION} \
+    -X monitor/internal/api.GitCommit=${GIT_COMMIT} \
+    -X monitor/internal/api.BuildTime=${BUILD_TIME}" \
+    -o /build/monitor ./cmd/server
 
 # ============================================
 # Stage 3: Runtime (Minimal Image)

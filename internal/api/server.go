@@ -21,6 +21,18 @@ import (
 //go:embed frontend/dist
 var frontendFS embed.FS
 
+var (
+	// 版本信息（通过 ldflags 注入）
+	Version   = "dev"
+	GitCommit = "unknown"
+	BuildTime = "unknown"
+)
+
+// 版本信息获取函数
+func getVersion() string   { return Version }
+func getGitCommit() string { return GitCommit }
+func getBuildTime() string { return BuildTime }
+
 // Server HTTP服务器
 type Server struct {
 	handler    *Handler
@@ -59,6 +71,15 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 
 	// 注册 API 路由
 	router.GET("/api/status", handler.GetStatus)
+
+	// 版本信息 API
+	router.GET("/api/version", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"version":    getVersion(),
+			"git_commit": getGitCommit(),
+			"build_time": getBuildTime(),
+		})
+	})
 
 	// 健康检查
 	router.GET("/health", func(c *gin.Context) {

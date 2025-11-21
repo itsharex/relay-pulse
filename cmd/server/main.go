@@ -14,7 +14,20 @@ import (
 	"monitor/internal/storage"
 )
 
+var (
+	// 版本信息（通过 ldflags 注入）
+	Version   = "dev"
+	GitCommit = "unknown"
+	BuildTime = "unknown"
+)
+
 func main() {
+	// 打印版本信息
+	log.Printf("🚀 Relay Pulse Monitor")
+	log.Printf("📦 Version: %s", Version)
+	log.Printf("🔖 Git Commit: %s", GitCommit)
+	log.Printf("🕐 Build Time: %s", BuildTime)
+	log.Println()
 	// 配置文件路径
 	configFile := "config.yaml"
 	if len(os.Args) > 1 {
