@@ -152,6 +152,14 @@ func setupStaticFiles(router *gin.Engine) {
 		return
 	}
 
+	// 🔍 调试：列出 embed 的 assets 文件
+	log.Printf("[API] 🔍 调试: 列出嵌入的 assets 文件:")
+	entries, _ := fs.ReadDir(assetsFS, ".")
+	for _, e := range entries {
+		info, _ := e.Info()
+		log.Printf("[API] 🔍   - %s (size: %d bytes)", e.Name(), info.Size())
+	}
+
 	// 静态资源路径（CSS、JS等）
 	router.StaticFS("/assets", http.FS(assetsFS))
 
@@ -169,6 +177,9 @@ func setupStaticFiles(router *gin.Engine) {
 	router.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 
+		// 🔍 调试：记录 NoRoute 被触发
+		log.Printf("[API] 🔍 NoRoute 触发: path=%s", path)
+
 		// API 路径返回 404
 		if strings.HasPrefix(path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
@@ -179,6 +190,7 @@ func setupStaticFiles(router *gin.Engine) {
 		// 当 /assets/ 下的文件不存在时，StaticFS 不处理，请求会落入 NoRoute
 		// 如果回退到 index.html，浏览器会因为 MIME 类型是 text/html 而报错
 		if strings.HasPrefix(path, "/assets/") {
+			log.Printf("[API] 🔍 assets 文件不存在，返回 404: %s", path)
 			c.Status(http.StatusNotFound)
 			return
 		}
