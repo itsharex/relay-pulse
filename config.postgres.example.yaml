@@ -1,0 +1,24 @@
+interval: "1m"
+slow_latency: "5s"
+
+# PostgreSQL 存储配置示例
+storage:
+  type: "postgres"
+  postgres:
+    host: "localhost"
+    port: 5432
+    user: "monitor"
+    password: "test_password"
+    database: "llm_monitor"
+    sslmode: "disable"
+    max_open_conns: 25
+    max_idle_conns: 5
+    conn_max_lifetime: "1h"
+
+monitors:
+  - provider: "test"
+    service: "api"
+    category: "commercial"
+    sponsor: "测试"
+    url: "https://api.test.com/v1/test"
+    method: "GET"

@@ -139,7 +139,7 @@ Type=simple
 User=monitor
 WorkingDirectory=/opt/relay-pulse
 EnvironmentFile=/etc/relay-pulse.env
-ExecStart=/opt/relay-pulse/monitor -config /opt/relay-pulse/config/config.production.yaml
+ExecStart=/opt/relay-pulse/monitor /opt/relay-pulse/config/config.production.yaml
 Restart=always
 RestartSec=10
 LimitNOFILE=4096
@@ -431,8 +431,10 @@ sudo systemctl start relay-pulse
 ### 后端无法启动
 
 ```bash
-# 检查配置文件语法
-./monitor -config config.production.yaml -validate
+# 检查配置文件语法（程序启动时会自动验证）
+./monitor config.production.yaml &
+sleep 2
+kill %1
 
 # 检查端口占用
 sudo netstat -tulpn | grep 8080

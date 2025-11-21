@@ -4,7 +4,7 @@
 Go 后端位于 `cmd/server/main.go`，核心包集中在 `internal/`（`config`、`scheduler`、`monitor`、`storage`、`api`）。运行期资产（`monitor.db`、构建产物）放在 `monitor/`。根目录 `config.yaml` 控制监控任务，模板版本为 `config.yaml.example`，部署时只复制示例并加密 secrets。React 前端位于 `frontend/`（`src/components`、`hooks`、`constants`、`types`），脚本在 `scripts/`，长文档在 `docs/`；静态资源统一放 `frontend/public`，以便 Vite 构建拾取。
 
 ## 构建、测试与开发命令
-- 后端：使用 `go mod tidy` 同步依赖，`go build -o monitor ./cmd/server` 或 `go run cmd/server/main.go` 做快速验证，`./monitor -config config.yaml` 指定自定义路径。
+- 后端：使用 `go mod tidy` 同步依赖，`go build -o monitor ./cmd/server` 或 `go run cmd/server/main.go` 做快速验证，`./monitor config.yaml` 指定自定义路径。
 - 配置：执行 `cp config.yaml.example config.yaml`，再导出 `MONITOR_<PROVIDER>_<SERVICE>_API_KEY` 以避免泄露，同时在 `.env` 中记录本地假数据。
 - 质量闸门：`go fmt ./... && go vet ./... && go test ./...`；动到调度或存储时加跑 `go test -cover ./internal/...`，必要时用 `pre-commit run --all-files` 触发整套钩子。
 - 前端：`npm install --prefix frontend`，然后 `npm run dev|build|lint --prefix frontend`，`npm run preview --prefix frontend` 可在 Vite 预览模式下验证打包产物。

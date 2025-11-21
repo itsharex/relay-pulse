@@ -46,5 +46,5 @@ env | grep '^MONITOR_' > /dev/null && {
 echo "[Entrypoint] 启动监控服务..."
 echo "----------------------------------------"
 
-# 执行主程序
-exec /app/monitor -config "$ACTIVE_CONFIG"
+# 执行主程序（main.go 通过 os.Args[1] 读取配置文件路径，不需要 -config 标志）
+exec /app/monitor "$ACTIVE_CONFIG"
