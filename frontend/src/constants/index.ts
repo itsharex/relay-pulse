@@ -57,4 +57,4 @@ export const USE_MOCK_DATA =
 // 反馈/推荐服务商链接
 export const FEEDBACK_URL =
   import.meta.env.VITE_FEEDBACK_URL ||
-  'https://github.com/prehisle/relay-pulse/issues/new?template=provider.md&labels=provider';
+  'https://github.com/prehisle/relay-pulse/issues/new?template=submit-provider.md&labels=submission';
