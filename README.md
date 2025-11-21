@@ -40,14 +40,23 @@ monitor/
 curl -O https://raw.githubusercontent.com/prehisle/relay-pulse/main/docker-compose.yaml
 curl -O https://raw.githubusercontent.com/prehisle/relay-pulse/main/config.yaml.example
 
-# 2. 准备配置
+# 2. 下载 data 目录（包含 JSON 模板文件）
+mkdir -p data
+curl -o data/cc_base.json https://raw.githubusercontent.com/prehisle/relay-pulse/main/data/cc_base.json
+curl -o data/cx_base.json https://raw.githubusercontent.com/prehisle/relay-pulse/main/data/cx_base.json
+
+# 3. 准备配置
 cp config.yaml.example config.yaml
 vim config.yaml  # 填入你的 API Key
 
-# 3. 一键启动
+# 4. 取消注释 data 目录挂载（编辑 docker-compose.yaml）
+# 找到这一行并取消注释:
+#   - ./data:/app/data:ro
+
+# 5. 一键启动
 docker compose up -d
 
-# 4. 访问服务
+# 6. 访问服务
 open http://localhost:8080
 ```
 
