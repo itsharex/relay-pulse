@@ -76,6 +76,10 @@ type AppConfig struct {
 	// 解析后的慢请求阈值（内部使用，不序列化）
 	SlowLatencyDuration time.Duration `yaml:"-" json:"-"`
 
+	// 可用率中黄色状态的权重（0-1，默认 0.7）
+	// 绿色=1.0, 黄色=degraded_weight, 红色=0.0
+	DegradedWeight float64 `yaml:"degraded_weight" json:"degraded_weight"`
+
 	// 存储配置
 	Storage StorageConfig `yaml:"storage" json:"storage"`
 
@@ -175,6 +179,16 @@ func (c *AppConfig) Normalize() error {
 			return fmt.Errorf("slow_latency 必须大于 0")
 		}
 		c.SlowLatencyDuration = d
+	}
+
+	// 黄色状态权重（默认 0.7，允许 0.01-1.0）
+	// 注意：0 被视为未配置，将使用默认值 0.7
+	// 如果需要极低权重，请使用 0.01 或更小的正数
+	if c.DegradedWeight == 0 {
+		c.DegradedWeight = 0.7 // 未配置时使用默认值
+	}
+	if c.DegradedWeight < 0 || c.DegradedWeight > 1 {
+		return fmt.Errorf("degraded_weight 必须在 0 到 1 之间（0 表示使用默认值 0.7），当前值: %.2f", c.DegradedWeight)
 	}
 
 	// 存储配置默认值
@@ -333,7 +347,13 @@ func isValidCategory(category string) bool {
 // Clone 深拷贝配置（用于热更新回滚）
 func (c *AppConfig) Clone() *AppConfig {
 	clone := &AppConfig{
-		Monitors: make([]ServiceConfig, len(c.Monitors)),
+		Interval:            c.Interval,
+		IntervalDuration:    c.IntervalDuration,
+		SlowLatency:         c.SlowLatency,
+		SlowLatencyDuration: c.SlowLatencyDuration,
+		DegradedWeight:      c.DegradedWeight,
+		Storage:             c.Storage,
+		Monitors:            make([]ServiceConfig, len(c.Monitors)),
 	}
 	copy(clone.Monitors, c.Monitors)
 	return clone

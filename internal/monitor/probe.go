@@ -139,9 +139,14 @@ func (p *Prober) determineStatus(statusCode, latency int, slowLatency time.Durat
 		return 3
 	}
 
-	// 5xx 或 429 = 黄色（临时问题）
-	if statusCode >= 500 || statusCode == 429 {
+	// 429 = 黄色（速率限制，提醒慢下来）
+	if statusCode == 429 {
 		return 2
+	}
+
+	// 5xx = 红色（服务器错误，视为不可用）
+	if statusCode >= 500 {
+		return 0
 	}
 
 	// 其他4xx = 红色（客户端错误）

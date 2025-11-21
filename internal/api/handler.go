@@ -66,6 +66,7 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	// 获取配置副本（线程安全）
 	h.cfgMu.RLock()
 	monitors := h.config.Monitors
+	degradedWeight := h.config.DegradedWeight
 	h.cfgMu.RUnlock()
 
 	var response []MonitorResult
@@ -107,7 +108,7 @@ func (h *Handler) GetStatus(c *gin.Context) {
 		}
 
 		// 转换为时间轴数据
-		timeline := h.buildTimeline(history, period)
+		timeline := h.buildTimeline(history, period, degradedWeight)
 
 		// 转换为API响应格式（不暴露数据库主键）
 		var current *CurrentStatus
@@ -159,14 +160,14 @@ func (h *Handler) parsePeriod(period string) (time.Time, error) {
 
 // bucketStats 用于聚合每个 bucket 内的探测数据
 type bucketStats struct {
-	total      int                   // 总探测次数
-	success    int                   // 成功次数（status == 1 或 2）
-	latencySum int64                 // 延迟总和
-	last       *storage.ProbeRecord  // 最新一条记录
+	total           int                  // 总探测次数
+	weightedSuccess float64              // 累积成功权重（绿=1.0, 黄=degraded_weight, 红=0.0）
+	latencySum      int64                // 延迟总和
+	last            *storage.ProbeRecord // 最新一条记录
 }
 
 // buildTimeline 构建固定长度的时间轴，计算每个 bucket 的可用率和平均延迟
-func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string) []storage.TimePoint {
+func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string, degradedWeight float64) []storage.TimePoint {
 	// 根据 period 确定 bucket 策略
 	bucketCount, bucketWindow, format := h.determineBucketStrategy(period)
 
@@ -210,9 +211,7 @@ func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string) [
 		// 聚合统计
 		stat := &stats[actualIndex]
 		stat.total++
-		if record.Status == 1 || record.Status == 2 {
-			stat.success++
-		}
+		stat.weightedSuccess += availabilityWeight(record.Status, degradedWeight)
 		stat.latencySum += int64(record.Latency)
 
 		// 保留最新记录
@@ -228,8 +227,8 @@ func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string) [
 			continue
 		}
 
-		// 计算可用率
-		buckets[i].Availability = (float64(stat.success) / float64(stat.total)) * 100
+		// 计算可用率（使用权重）
+		buckets[i].Availability = (stat.weightedSuccess / float64(stat.total)) * 100
 
 		// 计算平均延迟（四舍五入）
 		avgLatency := float64(stat.latencySum) / float64(stat.total)
@@ -265,4 +264,16 @@ func (h *Handler) UpdateConfig(cfg *config.AppConfig) {
 	h.cfgMu.Lock()
 	h.config = cfg
 	h.cfgMu.Unlock()
+}
+
+// availabilityWeight 根据状态码返回可用率权重
+func availabilityWeight(status int, degradedWeight float64) float64 {
+	switch status {
+	case 1: // 绿色（正常）
+		return 1.0
+	case 2: // 黄色（降级：慢响应或429）
+		return degradedWeight
+	default: // 红色（不可用）或灰色（未配置）
+		return 0.0
+	}
 }
