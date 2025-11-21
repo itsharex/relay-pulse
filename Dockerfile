@@ -50,7 +50,7 @@ FROM alpine:3.19
 WORKDIR /app
 
 # 安装必要的运行时依赖
-RUN apk add --no-cache ca-certificates tzdata bash
+RUN apk add --no-cache ca-certificates tzdata bash wget
 
 # 从后端 builder 复制二进制文件
 COPY --from=backend-builder /build/monitor /app/monitor

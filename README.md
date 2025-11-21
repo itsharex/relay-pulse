@@ -6,7 +6,8 @@
 
 ✅ **配置驱动** - YAML 配置，支持环境变量覆盖
 ✅ **热更新** - 修改配置无需重启服务
-✅ **真实历史** - SQLite 持久化历史数据
+✅ **多后端存储** - 支持 SQLite 和 PostgreSQL，灵活切换
+✅ **云原生** - Kubernetes 友好，支持水平扩展
 ✅ **并发安全** - HTTP 客户端池复用，防重复触发
 ✅ **生产级质量** - 完整错误处理，优雅关闭
 
@@ -17,12 +18,17 @@ monitor/
 ├── cmd/server/main.go          # 入口
 ├── internal/
 │   ├── config/                 # 配置管理（验证、热更新、环境变量）
-│   ├── storage/                # 存储层（SQLite 持久化）
+│   ├── storage/                # 存储层（SQLite/PostgreSQL 抽象）
+│   │   ├── storage.go          # 存储接口定义
+│   │   ├── factory.go          # 工厂模式
+│   │   ├── sqlite.go           # SQLite 实现
+│   │   └── postgres.go         # PostgreSQL 实现
 │   ├── monitor/                # 监控引擎（HTTP 客户端池、探测）
 │   ├── scheduler/              # 调度器（防重复、并发控制）
 │   └── api/                    # API 层（gin、历史查询）
 ├── config.yaml                 # 配置文件
-└── monitor.db                  # SQLite 数据库
+├── docker-compose.yaml         # Docker Compose（支持双后端）
+└── Dockerfile                  # 多阶段构建
 ```
 
 ## 快速开始
@@ -118,6 +124,80 @@ go run cmd/server/main.go
 ```
 
 命名规则：`MONITOR_<PROVIDER>_<SERVICE>_API_KEY`（大写，`-` 替换为 `_`）
+
+## 数据库配置
+
+系统支持 **SQLite** 和 **PostgreSQL** 两种存储后端，通过配置文件或环境变量灵活切换。
+
+### SQLite（默认，单机部署）
+
+适用于单机部署、开发环境和小规模监控。
+
+```yaml
+# config.yaml
+storage:
+  type: "sqlite"
+  sqlite:
+    path: "monitor.db"
+```
+
+**优点**：
+- 零配置，开箱即用
+- 无需额外服务依赖
+- 适合快速启动和测试
+
+**限制**：
+- 不支持多副本部署
+- Kubernetes 环境需要 StatefulSet + PV
+
+### PostgreSQL（K8s/生产环境推荐）
+
+适用于 Kubernetes 多副本部署、高可用场景。
+
+```yaml
+# config.yaml
+storage:
+  type: "postgres"
+  postgres:
+    host: "postgres-service"
+    port: 5432
+    user: "monitor"
+    password: "secret"  # 建议使用环境变量
+    database: "llm_monitor"
+    sslmode: "disable"  # 生产环境建议 "require"
+    max_open_conns: 25
+    max_idle_conns: 5
+    conn_max_lifetime: "1h"
+```
+
+**通过环境变量配置**（推荐）：
+
+```bash
+export MONITOR_STORAGE_TYPE=postgres
+export MONITOR_POSTGRES_HOST=postgres-service
+export MONITOR_POSTGRES_USER=monitor
+export MONITOR_POSTGRES_PASSWORD=your_secure_password
+export MONITOR_POSTGRES_DATABASE=llm_monitor
+
+./monitor
+```
+
+**优点**：
+- ✅ 支持水平扩展（多副本）
+- ✅ 高可用和主从复制
+- ✅ 完整的 ACID 事务
+- ✅ 成熟的备份恢复方案
+- ✅ 云原生数据库支持（AWS RDS、Google Cloud SQL 等）
+
+**初始化 PostgreSQL**：
+
+```sql
+CREATE DATABASE llm_monitor;
+CREATE USER monitor WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE llm_monitor TO monitor;
+```
+
+系统会在首次启动时自动创建表结构和索引。
 
 ## 热更新
 
@@ -265,17 +345,49 @@ services:
 
 **常用操作**：
 ```bash
-# 启动服务
-docker-compose up -d
+# SQLite 模式（默认）
+docker-compose up -d monitor
+
+# PostgreSQL 模式（需先取消注释 postgres 和 monitor-pg 配置）
+docker-compose up -d postgres monitor-pg
 
 # 查看日志
-docker-compose logs -f monitor
+docker-compose logs -f monitor  # SQLite 模式
+docker-compose logs -f monitor-pg  # PostgreSQL 模式
 
 # 重启服务（配置更新后）
 docker-compose restart monitor
 
 # 停止服务
 docker-compose down
+```
+
+#### PostgreSQL 模式部署
+
+适用于 Kubernetes 或多副本部署场景：
+
+```bash
+# 1. 编辑 docker-compose.yaml，取消注释 postgres 和 monitor-pg 服务
+
+# 2. 启动 PostgreSQL 和监控服务
+docker-compose up -d postgres monitor-pg
+
+# 3. 验证连接
+docker-compose logs -f monitor-pg
+# 输出应包含: ✅ postgres 存储已就绪
+
+# 4. 查看数据库
+docker-compose exec postgres psql -U monitor -d llm_monitor -c "SELECT COUNT(*) FROM probe_history;"
+```
+
+**PostgreSQL 环境变量配置**：
+```bash
+# .env
+MONITOR_STORAGE_TYPE=postgres
+MONITOR_POSTGRES_HOST=postgres
+MONITOR_POSTGRES_USER=monitor
+MONITOR_POSTGRES_PASSWORD=your_secure_password
+MONITOR_POSTGRES_DATABASE=llm_monitor
 ```
 
 #### 环境变量配置（推荐）

@@ -1,6 +1,32 @@
 interval: "1m"       # 巡检间隔，可写成 "30s"、"1m"、"5m" 等
 slow_latency: "5s"   # 慢请求阈值，超过则从绿降为黄
 
+# ============================================
+# 存储配置（支持 SQLite 和 PostgreSQL）
+# ============================================
+storage:
+  type: "sqlite"  # 存储类型："sqlite" 或 "postgres"
+
+  # SQLite 配置（单机部署推荐）
+  sqlite:
+    path: "monitor.db"  # 数据库文件路径
+
+  # PostgreSQL 配置（K8s/多副本部署推荐）
+  # 取消注释以下配置以启用 PostgreSQL
+  # postgres:
+  #   host: "localhost"
+  #   port: 5432
+  #   user: "monitor"
+  #   password: "monitor_password"  # 建议使用环境变量 MONITOR_POSTGRES_PASSWORD
+  #   database: "llm_monitor"
+  #   sslmode: "disable"  # 生产环境建议使用 "require"
+  #   max_open_conns: 25
+  #   max_idle_conns: 5
+  #   conn_max_lifetime: "1h"
+
+# ============================================
+# 监控任务配置
+# ============================================
 monitors:
   # --- 88code ---
   - provider: "88code"

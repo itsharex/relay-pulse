@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # ============================================
+  # 方式一：使用 SQLite (默认，单机部署)
+  # ============================================
   monitor:
     # 使用本地构建或从 GitHub Container Registry 拉取
     image: ghcr.io/yourusername/ysh-monitor:latest
@@ -18,13 +21,16 @@ services:
     # 如不挂载,将使用容器内默认配置
     volumes:
       - ./config.local.yaml:/config/config.yaml:ro
-      # 如需持久化数据库,取消注释下一行:
-      # - ./data/monitor.db:/app/monitor.db
+      # SQLite 持久化（使用 SQLite 时推荐）:
+      # - ./data:/app/data
 
     # 环境变量覆盖 API 密钥 (推荐)
     environment:
       # 时区设置
       - TZ=Asia/Shanghai
+
+      # 存储类型（默认 sqlite）
+      # - MONITOR_STORAGE_TYPE=sqlite
 
       # API 密钥覆盖示例 (格式: MONITOR_<PROVIDER>_<SERVICE>_API_KEY)
       # - MONITOR_88CODE_CC_API_KEY=sk-your-real-key
@@ -56,22 +62,96 @@ services:
     #       cpus: '0.5'
     #       memory: 256M
 
+  # ============================================
+  # 方式二：使用 PostgreSQL (K8s/多副本部署推荐)
+  # ============================================
+  # 取消注释以下配置以启用 PostgreSQL 模式
+
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: llm-monitor-postgres
+  #   environment:
+  #     POSTGRES_USER: monitor
+  #     POSTGRES_PASSWORD: monitor_password
+  #     POSTGRES_DB: llm_monitor
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U monitor"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   restart: unless-stopped
+
+  # monitor-pg:
+  #   image: ghcr.io/yourusername/ysh-monitor:latest
+  #   container_name: llm-monitor-pg
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./config.local.yaml:/config/config.yaml:ro
+  #   environment:
+  #     - TZ=Asia/Shanghai
+  #     - MONITOR_STORAGE_TYPE=postgres
+  #     - MONITOR_POSTGRES_HOST=postgres
+  #     - MONITOR_POSTGRES_PORT=5432
+  #     - MONITOR_POSTGRES_USER=monitor
+  #     - MONITOR_POSTGRES_PASSWORD=monitor_password
+  #     - MONITOR_POSTGRES_DATABASE=llm_monitor
+  #     - MONITOR_POSTGRES_SSLMODE=disable
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 15s
+  #   restart: unless-stopped
+
+# volumes:
+#   postgres_data:
+
 # ============================================
 # 使用说明
 # ============================================
-# 1. 本地构建并启动:
-#    docker-compose up --build
 #
-# 2. 使用远程镜像启动:
-#    docker-compose up -d
+# 方式一：SQLite 模式（默认，单机部署）
+# ------------------------------
+# 1. 启动服务:
+#    docker-compose up -d monitor
+#
+# 2. 查看日志:
+#    docker-compose logs -f monitor
+#
+# 3. 停止服务:
+#    docker-compose down
+#
+# 方式二：PostgreSQL 模式（K8s/多副本推荐）
+# ------------------------------
+# 1. 编辑 docker-compose.yaml，取消注释 postgres 和 monitor-pg 相关配置
+#
+# 2. 启动服务（包含 PostgreSQL）:
+#    docker-compose up -d postgres monitor-pg
 #
 # 3. 查看日志:
-#    docker-compose logs -f monitor
+#    docker-compose logs -f monitor-pg
 #
 # 4. 停止服务:
 #    docker-compose down
+#    docker-compose down -v  # 同时删除数据卷
 #
-# 5. 环境变量配置 (.env 文件示例):
-#    MONITOR_88CODE_CC_API_KEY=sk-xxx
-#    MONITOR_DUCKCODING_CC_API_KEY=sk-yyy
+# 环境变量配置 (.env 文件示例)
+# ------------------------------
+# # API 密钥
+# MONITOR_88CODE_CC_API_KEY=sk-xxx
+# MONITOR_DUCKCODING_CC_API_KEY=sk-yyy
+#
+# # 存储配置
+# MONITOR_STORAGE_TYPE=postgres
+# MONITOR_POSTGRES_HOST=postgres
+# MONITOR_POSTGRES_PASSWORD=your_secure_password
 # ============================================

@@ -33,6 +33,35 @@ type ServiceConfig struct {
 	APIKey string `yaml:"api_key" json:"-"` // 不返回给前端
 }
 
+// StorageConfig 存储配置
+type StorageConfig struct {
+	Type string `yaml:"type" json:"type"` // "sqlite" 或 "postgres"
+
+	// SQLite 配置
+	SQLite SQLiteConfig `yaml:"sqlite" json:"sqlite"`
+
+	// PostgreSQL 配置
+	Postgres PostgresConfig `yaml:"postgres" json:"postgres"`
+}
+
+// SQLiteConfig SQLite 配置
+type SQLiteConfig struct {
+	Path string `yaml:"path" json:"path"` // 数据库文件路径
+}
+
+// PostgresConfig PostgreSQL 配置
+type PostgresConfig struct {
+	Host            string `yaml:"host" json:"host"`
+	Port            int    `yaml:"port" json:"port"`
+	User            string `yaml:"user" json:"user"`
+	Password        string `yaml:"password" json:"-"` // 不输出到 JSON
+	Database        string `yaml:"database" json:"database"`
+	SSLMode         string `yaml:"sslmode" json:"sslmode"`
+	MaxOpenConns    int    `yaml:"max_open_conns" json:"max_open_conns"`
+	MaxIdleConns    int    `yaml:"max_idle_conns" json:"max_idle_conns"`
+	ConnMaxLifetime string `yaml:"conn_max_lifetime" json:"conn_max_lifetime"`
+}
+
 // AppConfig 应用配置
 type AppConfig struct {
 	// 巡检间隔（支持 Go duration 格式，例如 "30s"、"1m", "5m"）
@@ -46,6 +75,9 @@ type AppConfig struct {
 
 	// 解析后的慢请求阈值（内部使用，不序列化）
 	SlowLatencyDuration time.Duration `yaml:"-" json:"-"`
+
+	// 存储配置
+	Storage StorageConfig `yaml:"storage" json:"storage"`
 
 	Monitors []ServiceConfig `yaml:"monitors"`
 }
@@ -145,6 +177,31 @@ func (c *AppConfig) Normalize() error {
 		c.SlowLatencyDuration = d
 	}
 
+	// 存储配置默认值
+	if c.Storage.Type == "" {
+		c.Storage.Type = "sqlite" // 默认使用 SQLite
+	}
+	if c.Storage.Type == "sqlite" && c.Storage.SQLite.Path == "" {
+		c.Storage.SQLite.Path = "monitor.db" // 默认路径
+	}
+	if c.Storage.Type == "postgres" {
+		if c.Storage.Postgres.Port == 0 {
+			c.Storage.Postgres.Port = 5432
+		}
+		if c.Storage.Postgres.SSLMode == "" {
+			c.Storage.Postgres.SSLMode = "disable"
+		}
+		if c.Storage.Postgres.MaxOpenConns == 0 {
+			c.Storage.Postgres.MaxOpenConns = 25
+		}
+		if c.Storage.Postgres.MaxIdleConns == 0 {
+			c.Storage.Postgres.MaxIdleConns = 5
+		}
+		if c.Storage.Postgres.ConnMaxLifetime == "" {
+			c.Storage.Postgres.ConnMaxLifetime = "1h"
+		}
+	}
+
 	// 将全局慢请求阈值下发到每个监控项，并标准化 category、URLs
 	for i := range c.Monitors {
 		if c.Monitors[i].SlowLatencyDuration == 0 {
@@ -162,8 +219,42 @@ func (c *AppConfig) Normalize() error {
 }
 
 // ApplyEnvOverrides 应用环境变量覆盖
-// 格式：MONITOR_<PROVIDER>_<SERVICE>_API_KEY
+// API Key 格式：MONITOR_<PROVIDER>_<SERVICE>_API_KEY
+// 存储配置格式：MONITOR_STORAGE_TYPE, MONITOR_POSTGRES_HOST 等
 func (c *AppConfig) ApplyEnvOverrides() {
+	// 存储配置环境变量覆盖
+	if envType := os.Getenv("MONITOR_STORAGE_TYPE"); envType != "" {
+		c.Storage.Type = envType
+	}
+
+	// PostgreSQL 配置环境变量覆盖
+	if envHost := os.Getenv("MONITOR_POSTGRES_HOST"); envHost != "" {
+		c.Storage.Postgres.Host = envHost
+	}
+	if envPort := os.Getenv("MONITOR_POSTGRES_PORT"); envPort != "" {
+		if port, err := fmt.Sscanf(envPort, "%d", &c.Storage.Postgres.Port); err == nil && port == 1 {
+			// Port parsed successfully
+		}
+	}
+	if envUser := os.Getenv("MONITOR_POSTGRES_USER"); envUser != "" {
+		c.Storage.Postgres.User = envUser
+	}
+	if envPass := os.Getenv("MONITOR_POSTGRES_PASSWORD"); envPass != "" {
+		c.Storage.Postgres.Password = envPass
+	}
+	if envDB := os.Getenv("MONITOR_POSTGRES_DATABASE"); envDB != "" {
+		c.Storage.Postgres.Database = envDB
+	}
+	if envSSL := os.Getenv("MONITOR_POSTGRES_SSLMODE"); envSSL != "" {
+		c.Storage.Postgres.SSLMode = envSSL
+	}
+
+	// SQLite 配置环境变量覆盖
+	if envPath := os.Getenv("MONITOR_SQLITE_PATH"); envPath != "" {
+		c.Storage.SQLite.Path = envPath
+	}
+
+	// API Key 覆盖
 	for i := range c.Monitors {
 		m := &c.Monitors[i]
 		envKey := fmt.Sprintf("MONITOR_%s_%s_API_KEY",

@@ -32,8 +32,8 @@ func main() {
 
 	log.Printf("✅ 已加载 %d 个监控任务", len(cfg.Monitors))
 
-	// 初始化存储
-	store, err := storage.NewSQLiteStorage("monitor.db")
+	// 初始化存储（支持 SQLite 和 PostgreSQL）
+	store, err := storage.New(&cfg.Storage)
 	if err != nil {
 		log.Fatalf("❌ 初始化存储失败: %v", err)
 	}
@@ -43,7 +43,11 @@ func main() {
 		log.Fatalf("❌ 初始化数据库失败: %v", err)
 	}
 
-	log.Println("✅ SQLite 存储已就绪")
+	storageType := cfg.Storage.Type
+	if storageType == "" {
+		storageType = "sqlite"
+	}
+	log.Printf("✅ %s 存储已就绪", storageType)
 
 	// 创建上下文（用于优雅关闭）
 	ctx, cancel := context.WithCancel(context.Background())
