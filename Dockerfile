@@ -39,7 +39,14 @@ COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 
 # 从前端构建阶段复制构建产物到 Go embed 目录
-COPY --from=frontend-builder /build/dist ./internal/api/frontend/dist
+# 先清理目标目录，避免嵌套 dist/dist/ 问题
+RUN rm -rf internal/api/frontend/dist && mkdir -p internal/api/frontend/dist
+COPY --from=frontend-builder /build/dist/. ./internal/api/frontend/dist/
+
+# 验证构建产物已正确复制（包含 assets 目录）
+RUN ls -la ./internal/api/frontend/dist && \
+    ls -la ./internal/api/frontend/dist/assets && \
+    echo "✅ Frontend assets verified"
 
 # 获取构建时间和版本信息
 ARG VERSION=dev
