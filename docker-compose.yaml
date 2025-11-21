@@ -22,8 +22,9 @@ services:
     volumes:
       # 配置文件（必需）
       - ./config.yaml:/app/config.yaml:ro
-      # 数据目录（用于 !include 引用的 JSON 文件）
-      - ./data:/app/data:ro
+      # 数据目录（可选，默认使用镜像内置的 data 文件）
+      # 如需自定义 data 文件，取消注释下行:
+      # - ./data:/app/data:ro
       # SQLite 数据库持久化（使用命名卷）
       - relay-pulse-data:/app
 
@@ -175,6 +176,17 @@ networks:
 # 5. 停止服务:
 #    docker compose down
 #    docker compose down -v  # 同时删除数据卷
+#
+# 自定义 data 文件（可选）
+# ------------------------------
+# data 目录包含 !include 引用的 JSON 文件（如 cc_base.json、cx_base.json）
+# 默认使用镜像内置的 data 文件，无需挂载
+#
+# 如需自定义 data 文件内容:
+# 1. 在 docker-compose.yaml 中取消注释 data 目录挂载:
+#    - ./data:/app/data:ro
+# 2. 编辑本地 data/*.json 文件
+# 3. 重启服务: docker compose restart monitor
 #
 # 开发模式（允许 localhost CORS）
 # ------------------------------
