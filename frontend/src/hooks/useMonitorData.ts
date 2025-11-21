@@ -8,6 +8,18 @@ import type {
 import { API_BASE_URL, STATUS, USE_MOCK_DATA } from '../constants';
 import { fetchMockMonitorData } from '../utils/mockMonitor';
 
+// URL 二次校验函数
+function validateUrl(url: string | undefined): string | null {
+  if (!url || url.trim() === '') return null;
+  try {
+    new URL(url);
+    return url;
+  } catch {
+    console.warn(`Invalid URL: ${url}`);
+    return null;
+  }
+}
+
 // 导入 STATUS_MAP
 const statusMap: Record<number, StatusKey> = {
   1: 'AVAILABLE',
@@ -93,9 +105,11 @@ export function useMonitorData({
               id: `${item.provider}-${item.service}`,
               providerId: item.provider,
               providerName: item.provider,
+              providerUrl: validateUrl(item.provider_url),
               serviceType: item.service,
               category: item.category,
               sponsor: item.sponsor,
+              sponsorUrl: validateUrl(item.sponsor_url),
               channel: item.channel || undefined,
               history,
               currentStatus,

@@ -15,9 +15,11 @@ export interface CurrentStatus {
 
 export interface MonitorResult {
   provider: string;
+  provider_url?: string;               // 服务商官网链接
   service: string;
   category: 'commercial' | 'public';  // 分类：commercial（推广站）或 public（公益站）
   sponsor: string;                     // 赞助者
+  sponsor_url?: string;                // 赞助者链接
   channel: string;                     // 业务通道标识
   current_status: CurrentStatus | null;
   timeline: TimePoint[];
@@ -54,9 +56,11 @@ export interface ProcessedMonitorData {
   id: string;
   providerId: string;
   providerName: string;
+  providerUrl?: string | null;         // 服务商官网链接
   serviceType: string;
   category: 'commercial' | 'public';  // 分类
   sponsor: string;                     // 赞助者
+  sponsorUrl?: string | null;          // 赞助者链接
   channel?: string;                    // 业务通道标识
   history: Array<{
     index: number;

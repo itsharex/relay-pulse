@@ -4,9 +4,11 @@ slow_latency: "5s"   # 慢请求阈值，超过则从绿降为黄
 monitors:
   # --- 88code ---
   - provider: "88code"
+    provider_url: "https://88code.com"  # 可选：服务商官网链接，前端可点击跳转
     service: "cc"
     category: "commercial"  # 必填：商业站(commercial) 或 公益站(public)
     sponsor: "团队自有"      # 必填：提供 API Key 的赞助者
+    sponsor_url: "https://example.com/sponsor"  # 可选：赞助者链接
     channel: "vip-channel"  # 业务通道标识（可选），用于分类和过滤
     url: "https://api.88code.com/v1/chat/completions"
     method: "POST"

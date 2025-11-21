@@ -16,7 +16,8 @@ BINARY_PATH=./$(BINARY_NAME)
 MAIN_PACKAGE=./cmd/server
 
 # Air hot reload tool
-AIR_CMD=$(shell command -v air 2>/dev/null)
+# 优先使用 PATH 中的 air，如果没有则尝试 Go bin 目录
+AIR_CMD=$(shell command -v air 2>/dev/null || echo "$(shell go env GOPATH)/bin/air")
 
 # 配置文件（用于 run 命令）
 # 注意：make dev 使用 air，配置文件固定为 config.yaml
@@ -49,19 +50,19 @@ run:
 
 # 开发模式（热重载）
 dev:
-	@if [ -z "$(AIR_CMD)" ]; then \
+	@if [ ! -f "$(AIR_CMD)" ] && [ -z "$$(command -v air 2>/dev/null)" ]; then \
 		echo "错误: air 未安装"; \
 		echo ""; \
 		echo "请运行以下命令安装:"; \
 		echo "  make install-air"; \
 		echo ""; \
 		echo "或手动安装:"; \
-		echo "  go install github.com/cosmtrek/air@latest"; \
+		echo "  go install github.com/air-verse/air@latest"; \
 		exit 1; \
 	fi
 	@echo "正在启动开发服务（热重载）..."
 	@echo "修改 .go 文件将自动重新编译"
-	$(AIR_CMD) -c .air.toml
+	@$(AIR_CMD) -c .air.toml
 
 # 运行测试
 test:
@@ -92,7 +93,7 @@ clean:
 # 安装 air 热重载工具
 install-air:
 	@echo "正在安装 air..."
-	$(GOCMD) install github.com/cosmtrek/air@latest
+	$(GOCMD) install github.com/air-verse/air@latest
 	@echo "安装完成！现在可以运行 'make dev'"
 
 # 整理依赖

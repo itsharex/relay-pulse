@@ -1,6 +1,7 @@
 import { Activity, Clock, Zap, Shield } from 'lucide-react';
 import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
+import { ExternalLink } from './ExternalLink';
 import { STATUS } from '../constants';
 import { availabilityToColor } from '../utils/color';
 import type { ProcessedMonitorData } from '../types';
@@ -31,7 +32,9 @@ export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: Stat
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-slate-100">{item.providerName}</h3>
+              <h3 className="text-lg font-bold text-slate-100">
+                <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
+              </h3>
               <span
                 className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
                   item.serviceType === 'cc'

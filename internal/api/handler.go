@@ -36,13 +36,15 @@ type CurrentStatus struct {
 
 // MonitorResult API返回结构
 type MonitorResult struct {
-	Provider string              `json:"provider"`
-	Service  string              `json:"service"`
-	Category string              `json:"category"` // 分类：commercial（推广站）或 public（公益站）
-	Sponsor  string              `json:"sponsor"`  // 赞助者
-	Channel  string              `json:"channel"`  // 业务通道标识
-	Current  *CurrentStatus      `json:"current_status"`
-	Timeline []storage.TimePoint `json:"timeline"`
+	Provider    string              `json:"provider"`
+	ProviderURL string              `json:"provider_url"` // 服务商官网链接
+	Service     string              `json:"service"`
+	Category    string              `json:"category"` // 分类：commercial（推广站）或 public（公益站）
+	Sponsor     string              `json:"sponsor"`  // 赞助者
+	SponsorURL  string              `json:"sponsor_url"` // 赞助者链接
+	Channel     string              `json:"channel"`  // 业务通道标识
+	Current     *CurrentStatus      `json:"current_status"`
+	Timeline    []storage.TimePoint `json:"timeline"`
 }
 
 // GetStatus 获取监控状态
@@ -118,13 +120,15 @@ func (h *Handler) GetStatus(c *gin.Context) {
 		}
 
 		response = append(response, MonitorResult{
-			Provider: task.Provider,
-			Service:  task.Service,
-			Category: task.Category,
-			Sponsor:  task.Sponsor,
-			Channel:  task.Channel,
-			Current:  current,
-			Timeline: timeline,
+			Provider:    task.Provider,
+			ProviderURL: task.ProviderURL,
+			Service:     task.Service,
+			Category:    task.Category,
+			Sponsor:     task.Sponsor,
+			SponsorURL:  task.SponsorURL,
+			Channel:     task.Channel,
+			Current:     current,
+			Timeline:    timeline,
 		})
 	}
 

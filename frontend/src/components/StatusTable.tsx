@@ -1,6 +1,7 @@
 import { ArrowUpDown, ArrowUp, ArrowDown, Zap, Shield } from 'lucide-react';
 import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
+import { ExternalLink } from './ExternalLink';
 import { STATUS, TIME_RANGES } from '../constants';
 import { availabilityToColor } from '../utils/color';
 import type { ProcessedMonitorData, SortConfig } from '../types';
@@ -105,7 +106,7 @@ export function StatusTable({
             <tr key={item.id} className="group hover:bg-slate-800/40 transition-colors">
               <td className="p-4 font-medium text-slate-200">
                 <div className="flex items-center gap-2">
-                  <span>{item.providerName}</span>
+                  <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
                   <span
                     className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                       item.category === 'commercial'
@@ -118,7 +119,9 @@ export function StatusTable({
                   </span>
                 </div>
               </td>
-              <td className="p-4 text-slate-300 text-sm">{item.sponsor}</td>
+              <td className="p-4 text-slate-300 text-sm">
+                <ExternalLink href={item.sponsorUrl}>{item.sponsor}</ExternalLink>
+              </td>
               <td className="p-4">
                 <span
                   className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border ${

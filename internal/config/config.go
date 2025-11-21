@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,15 +12,17 @@ import (
 
 // ServiceConfig 单个服务监控配置
 type ServiceConfig struct {
-	Provider string            `yaml:"provider" json:"provider"`
-	Service  string            `yaml:"service" json:"service"`
-	Category string            `yaml:"category" json:"category"` // 分类：commercial（推广站）或 public（公益站）
-	Sponsor  string            `yaml:"sponsor" json:"sponsor"`   // 赞助者：提供 API Key 的个人或组织
-	Channel  string            `yaml:"channel" json:"channel"`   // 业务通道标识（如 "vip-channel"、"standard-channel"），用于分类和过滤
-	URL      string            `yaml:"url" json:"url"`
-	Method   string            `yaml:"method" json:"method"`
-	Headers  map[string]string `yaml:"headers" json:"headers"`
-	Body     string            `yaml:"body" json:"body"`
+	Provider    string            `yaml:"provider" json:"provider"`
+	ProviderURL string            `yaml:"provider_url" json:"provider_url"` // 服务商官网链接（可选）
+	Service     string            `yaml:"service" json:"service"`
+	Category    string            `yaml:"category" json:"category"` // 分类：commercial（推广站）或 public（公益站）
+	Sponsor     string            `yaml:"sponsor" json:"sponsor"`   // 赞助者：提供 API Key 的个人或组织
+	SponsorURL  string            `yaml:"sponsor_url" json:"sponsor_url"` // 赞助者链接（可选）
+	Channel     string            `yaml:"channel" json:"channel"`   // 业务通道标识（如 "vip-channel"、"standard-channel"），用于分类和过滤
+	URL         string            `yaml:"url" json:"url"`
+	Method      string            `yaml:"method" json:"method"`
+	Headers     map[string]string `yaml:"headers" json:"headers"`
+	Body        string            `yaml:"body" json:"body"`
 
 	// SuccessContains 可选：响应体需包含的关键字，用于判定请求语义是否成功
 	SuccessContains string `yaml:"success_contains" json:"success_contains"`
@@ -86,6 +90,20 @@ func (c *AppConfig) Validate() error {
 			return fmt.Errorf("monitor[%d]: category '%s' 无效，必须是 commercial 或 public", i, m.Category)
 		}
 
+		// ProviderURL 验证（可选字段）
+		if m.ProviderURL != "" {
+			if err := validateURL(m.ProviderURL, "provider_url"); err != nil {
+				return fmt.Errorf("monitor[%d]: %w", i, err)
+			}
+		}
+
+		// SponsorURL 验证（可选字段）
+		if m.SponsorURL != "" {
+			if err := validateURL(m.SponsorURL, "sponsor_url"); err != nil {
+				return fmt.Errorf("monitor[%d]: %w", i, err)
+			}
+		}
+
 		// 唯一性检查
 		key := m.Provider + "/" + m.Service
 		if seen[key] {
@@ -127,13 +145,17 @@ func (c *AppConfig) Normalize() error {
 		c.SlowLatencyDuration = d
 	}
 
-	// 将全局慢请求阈值下发到每个监控项，并标准化 category
+	// 将全局慢请求阈值下发到每个监控项，并标准化 category、URLs
 	for i := range c.Monitors {
 		if c.Monitors[i].SlowLatencyDuration == 0 {
 			c.Monitors[i].SlowLatencyDuration = c.SlowLatencyDuration
 		}
 		// 标准化 category 为小写
 		c.Monitors[i].Category = strings.ToLower(c.Monitors[i].Category)
+
+		// 规范化 URLs：去除首尾空格和末尾的 /
+		c.Monitors[i].ProviderURL = strings.TrimRight(strings.TrimSpace(c.Monitors[i].ProviderURL), "/")
+		c.Monitors[i].SponsorURL = strings.TrimRight(strings.TrimSpace(c.Monitors[i].SponsorURL), "/")
 	}
 
 	return nil
@@ -224,4 +246,30 @@ func (c *AppConfig) Clone() *AppConfig {
 	}
 	copy(clone.Monitors, c.Monitors)
 	return clone
+}
+
+// validateURL 验证 URL 格式和协议安全性
+func validateURL(rawURL, fieldName string) error {
+	trimmed := strings.TrimSpace(rawURL)
+	if trimmed == "" {
+		return nil
+	}
+
+	parsed, err := url.ParseRequestURI(trimmed)
+	if err != nil {
+		return fmt.Errorf("%s 格式无效: %w", fieldName, err)
+	}
+
+	// 只允许 http 和 https 协议
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("%s 只支持 http:// 或 https:// 协议，收到: %s", fieldName, parsed.Scheme)
+	}
+
+	// 非 HTTPS 警告
+	if scheme == "http" {
+		log.Printf("[Config] 警告: %s 使用了非加密的 http:// 协议: %s", fieldName, trimmed)
+	}
+
+	return nil
 }
