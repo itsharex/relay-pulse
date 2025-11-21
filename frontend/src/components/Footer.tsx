@@ -1,4 +1,4 @@
-import { Activity, Shield, AlertTriangle } from 'lucide-react';
+import { Activity, Shield, AlertTriangle, Github } from 'lucide-react';
 
 const notices = [
   {
@@ -37,6 +37,21 @@ export function Footer() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* GitHub 链接 */}
+      <div className="mt-4 pt-4 border-t border-slate-800/50 flex items-center justify-center gap-2 text-xs">
+        <a
+          href="https://github.com/prehisle/relay-pulse"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/30 transition"
+        >
+          <Github size={14} />
+          <span>GitHub</span>
+        </a>
+        <span className="text-slate-600">·</span>
+        <span className="text-slate-500">开源项目，欢迎贡献</span>
       </div>
     </footer>
   );
