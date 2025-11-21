@@ -37,6 +37,12 @@ const mapStatusCounts = (counts?: StatusCounts): StatusCounts => ({
   degraded: counts?.degraded ?? 0,
   unavailable: counts?.unavailable ?? 0,
   missing: counts?.missing ?? 0,
+  slow_latency: counts?.slow_latency ?? 0,
+  rate_limit: counts?.rate_limit ?? 0,
+  server_error: counts?.server_error ?? 0,
+  client_error: counts?.client_error ?? 0,
+  network_error: counts?.network_error ?? 0,
+  content_mismatch: counts?.content_mismatch ?? 0,
 });
 
 interface UseMonitorDataOptions {

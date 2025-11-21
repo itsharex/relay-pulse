@@ -2,14 +2,28 @@ package storage
 
 import "time"
 
+// SubStatus 细分状态码（字符串形式，便于扩展和前后端统一）
+type SubStatus string
+
+const (
+	SubStatusNone            SubStatus = ""                   // 默认值（绿色或灰色无需细分）
+	SubStatusSlowLatency     SubStatus = "slow_latency"       // 响应慢
+	SubStatusRateLimit       SubStatus = "rate_limit"         // 限流（429）
+	SubStatusServerError     SubStatus = "server_error"       // 服务器错误（5xx）
+	SubStatusClientError     SubStatus = "client_error"       // 客户端错误（4xx）
+	SubStatusNetworkError    SubStatus = "network_error"      // 网络错误（连接失败）
+	SubStatusContentMismatch SubStatus = "content_mismatch"   // 内容校验失败
+)
+
 // ProbeRecord 探测记录
 type ProbeRecord struct {
 	ID        int64
 	Provider  string
 	Service   string
-	Status    int   // 1=绿, 0=红, 2=黄
-	Latency   int   // ms
-	Timestamp int64 // Unix时间戳
+	Status    int       // 1=绿, 0=红, 2=黄
+	SubStatus SubStatus // 细分状态（黄色/红色原因）
+	Latency   int       // ms
+	Timestamp int64     // Unix时间戳
 }
 
 // TimePoint 时间轴数据点（用于前端展示）
@@ -28,6 +42,16 @@ type StatusCounts struct {
 	Degraded    int `json:"degraded"`    // 黄色（波动/降级）次数
 	Unavailable int `json:"unavailable"` // 红色（不可用）次数
 	Missing     int `json:"missing"`     // 灰色（无数据/未配置）次数
+
+	// 细分统计（黄色波动细分）
+	SlowLatency int `json:"slow_latency"` // 黄色-响应慢次数
+	RateLimit   int `json:"rate_limit"`   // 黄色-限流次数
+
+	// 细分统计（红色不可用细分）
+	ServerError     int `json:"server_error"`     // 红色-服务器错误次数（5xx）
+	ClientError     int `json:"client_error"`     // 红色-客户端错误次数（4xx）
+	NetworkError    int `json:"network_error"`    // 红色-连接失败次数
+	ContentMismatch int `json:"content_mismatch"` // 红色-内容校验失败次数
 }
 
 // Storage 存储接口

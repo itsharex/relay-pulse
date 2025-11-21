@@ -214,7 +214,7 @@ func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string, d
 		stat.total++
 		stat.weightedSuccess += availabilityWeight(record.Status, degradedWeight)
 		stat.latencySum += int64(record.Latency)
-		incrementStatusCount(&stat.statusCounts, record.Status)
+		incrementStatusCount(&stat.statusCounts, record.Status, record.SubStatus)
 
 		// 保留最新记录
 		if stat.last == nil || record.Timestamp > stat.last.Timestamp {
@@ -281,15 +281,33 @@ func availabilityWeight(status int, degradedWeight float64) float64 {
 	}
 }
 
-// incrementStatusCount 统计每种状态出现次数
-func incrementStatusCount(counts *storage.StatusCounts, status int) {
+// incrementStatusCount 统计每种状态及细分出现次数
+func incrementStatusCount(counts *storage.StatusCounts, status int, subStatus storage.SubStatus) {
 	switch status {
 	case 1: // 绿色
 		counts.Available++
 	case 2: // 黄色
 		counts.Degraded++
+		// 黄色细分
+		switch subStatus {
+		case storage.SubStatusSlowLatency:
+			counts.SlowLatency++
+		case storage.SubStatusRateLimit:
+			counts.RateLimit++
+		}
 	case 0: // 红色
 		counts.Unavailable++
+		// 红色细分
+		switch subStatus {
+		case storage.SubStatusServerError:
+			counts.ServerError++
+		case storage.SubStatusClientError:
+			counts.ClientError++
+		case storage.SubStatusNetworkError:
+			counts.NetworkError++
+		case storage.SubStatusContentMismatch:
+			counts.ContentMismatch++
+		}
 	default: // 灰色（3）或其他
 		counts.Missing++
 	}

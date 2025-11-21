@@ -14,6 +14,12 @@ export function Tooltip({ tooltip }: TooltipProps) {
     degraded: 0,
     unavailable: 0,
     missing: 0,
+    slow_latency: 0,
+    rate_limit: 0,
+    server_error: 0,
+    client_error: 0,
+    network_error: 0,
+    content_mismatch: 0,
   };
 
   const statusSummary = [
@@ -22,6 +28,20 @@ export function Tooltip({ tooltip }: TooltipProps) {
     { key: 'unavailable', emoji: '🔴', label: '不可用', value: counts.unavailable },
     { key: 'missing', emoji: '⚪', label: '无数据', value: counts.missing },
   ];
+
+  // 黄色波动细分
+  const degradedSubstatus = [
+    { key: 'slow_latency', label: '响应慢', value: counts.slow_latency },
+    { key: 'rate_limit', label: '限流', value: counts.rate_limit },
+  ].filter(item => item.value > 0);
+
+  // 红色不可用细分
+  const unavailableSubstatus = [
+    { key: 'server_error', label: '服务器错误', value: counts.server_error },
+    { key: 'client_error', label: '客户端错误', value: counts.client_error },
+    { key: 'network_error', label: '连接失败', value: counts.network_error },
+    { key: 'content_mismatch', label: '内容校验失败', value: counts.content_mismatch },
+  ].filter(item => item.value > 0);
 
   return (
     <div
@@ -61,6 +81,32 @@ export function Tooltip({ tooltip }: TooltipProps) {
             </div>
           ))}
         </div>
+
+        {/* 黄色波动细分 */}
+        {degradedSubstatus.length > 0 && (
+          <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
+            <div className="text-[10px] text-slate-400 mb-0.5">🟡 波动细分</div>
+            {degradedSubstatus.map((item) => (
+              <div key={item.key} className="flex justify-between items-center gap-3 text-[10px] pl-2">
+                <span className="text-slate-400">• {item.label}</span>
+                <span className="text-slate-200 tabular-nums">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 红色不可用细分 */}
+        {unavailableSubstatus.length > 0 && (
+          <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
+            <div className="text-[10px] text-slate-400 mb-0.5">🔴 不可用细分</div>
+            {unavailableSubstatus.map((item) => (
+              <div key={item.key} className="flex justify-between items-center gap-3 text-[10px] pl-2">
+                <span className="text-slate-400">• {item.label}</span>
+                <span className="text-slate-200 tabular-nums">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 小三角箭头 */}
         <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-r border-b border-slate-700 transform rotate-45"></div>

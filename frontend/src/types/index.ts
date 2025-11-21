@@ -13,6 +13,16 @@ export interface StatusCounts {
   degraded: number;    // 黄色（波动/降级）次数
   unavailable: number; // 红色（不可用）次数
   missing: number;     // 灰色（无数据/未配置）次数
+
+  // 黄色波动细分
+  slow_latency: number; // 响应慢次数
+  rate_limit: number;   // 限流次数
+
+  // 红色不可用细分
+  server_error: number;     // 服务器错误次数（5xx）
+  client_error: number;     // 客户端错误次数（4xx）
+  network_error: number;    // 连接失败次数
+  content_mismatch: number; // 内容校验失败次数
 }
 
 export interface CurrentStatus {

@@ -38,6 +38,7 @@ func (s *SQLiteStorage) Init() error {
 		provider TEXT NOT NULL,
 		service TEXT NOT NULL,
 		status INTEGER NOT NULL,
+		sub_status TEXT NOT NULL DEFAULT '',
 		latency INTEGER NOT NULL,
 		timestamp INTEGER NOT NULL
 	);
@@ -51,6 +52,55 @@ func (s *SQLiteStorage) Init() error {
 		return fmt.Errorf("初始化数据库失败: %w", err)
 	}
 
+	// 兼容旧数据库：添加 sub_status 列（如果不存在）
+	if err := s.ensureSubStatusColumn(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ensureSubStatusColumn 在旧表上添加 sub_status 列（向后兼容）
+func (s *SQLiteStorage) ensureSubStatusColumn() error {
+	rows, err := s.db.Query(`PRAGMA table_info(probe_history)`)
+	if err != nil {
+		return fmt.Errorf("查询表结构失败: %w", err)
+	}
+	defer rows.Close()
+
+	hasColumn := false
+	for rows.Next() {
+		var (
+			cid          int
+			name         string
+			colType      string
+			notNull      int
+			defaultValue sql.NullString
+			pk           int
+		)
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("扫描表结构失败: %w", err)
+		}
+		if name == "sub_status" {
+			hasColumn = true
+			break
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("遍历表结构失败: %w", err)
+	}
+
+	if hasColumn {
+		return nil // 列已存在，无需添加
+	}
+
+	// 添加列
+	if _, err := s.db.Exec(`ALTER TABLE probe_history ADD COLUMN sub_status TEXT NOT NULL DEFAULT ''`); err != nil {
+		return fmt.Errorf("添加 sub_status 列失败: %w", err)
+	}
+
+	fmt.Println("[Storage] 已为 probe_history 表添加 sub_status 列")
 	return nil
 }
 
@@ -62,14 +112,15 @@ func (s *SQLiteStorage) Close() error {
 // SaveRecord 保存探测记录
 func (s *SQLiteStorage) SaveRecord(record *ProbeRecord) error {
 	query := `
-		INSERT INTO probe_history (provider, service, status, latency, timestamp)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO probe_history (provider, service, status, sub_status, latency, timestamp)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
 
 	result, err := s.db.Exec(query,
 		record.Provider,
 		record.Service,
 		record.Status,
+		string(record.SubStatus),
 		record.Latency,
 		record.Timestamp,
 	)
@@ -86,7 +137,7 @@ func (s *SQLiteStorage) SaveRecord(record *ProbeRecord) error {
 // GetLatest 获取最新记录
 func (s *SQLiteStorage) GetLatest(provider, service string) (*ProbeRecord, error) {
 	query := `
-		SELECT id, provider, service, status, latency, timestamp
+		SELECT id, provider, service, status, sub_status, latency, timestamp
 		FROM probe_history
 		WHERE provider = ? AND service = ?
 		ORDER BY timestamp DESC
@@ -94,11 +145,13 @@ func (s *SQLiteStorage) GetLatest(provider, service string) (*ProbeRecord, error
 	`
 
 	var record ProbeRecord
+	var subStatusStr string
 	err := s.db.QueryRow(query, provider, service).Scan(
 		&record.ID,
 		&record.Provider,
 		&record.Service,
 		&record.Status,
+		&subStatusStr,
 		&record.Latency,
 		&record.Timestamp,
 	)
@@ -111,13 +164,14 @@ func (s *SQLiteStorage) GetLatest(provider, service string) (*ProbeRecord, error
 		return nil, fmt.Errorf("查询最新记录失败: %w", err)
 	}
 
+	record.SubStatus = SubStatus(subStatusStr)
 	return &record, nil
 }
 
 // GetHistory 获取历史记录
 func (s *SQLiteStorage) GetHistory(provider, service string, since time.Time) ([]*ProbeRecord, error) {
 	query := `
-		SELECT id, provider, service, status, latency, timestamp
+		SELECT id, provider, service, status, sub_status, latency, timestamp
 		FROM probe_history
 		WHERE provider = ? AND service = ? AND timestamp >= ?
 		ORDER BY timestamp ASC
@@ -132,17 +186,20 @@ func (s *SQLiteStorage) GetHistory(provider, service string, since time.Time) ([
 	var records []*ProbeRecord
 	for rows.Next() {
 		var record ProbeRecord
+		var subStatusStr string
 		err := rows.Scan(
 			&record.ID,
 			&record.Provider,
 			&record.Service,
 			&record.Status,
+			&subStatusStr,
 			&record.Latency,
 			&record.Timestamp,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("扫描记录失败: %w", err)
 		}
+		record.SubStatus = SubStatus(subStatusStr)
 		records = append(records, &record)
 	}
 

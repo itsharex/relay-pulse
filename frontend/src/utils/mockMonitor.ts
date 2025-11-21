@@ -49,12 +49,39 @@ export function fetchMockMonitorData(timeRangeId: string): Promise<ProcessedMoni
             const timestampMs = Date.now() - (count - index) * (rangeConfig.unit === 'hour' ? 3600000 : 86400000);
 
             // 模拟状态计数（单次探测，所以只有一个状态为 1）
+            // 并根据状态类型模拟细分统计（每次只选择一个细分）
             const statusCounts: StatusCounts = {
               available: statusKey === 'AVAILABLE' ? 1 : 0,
               degraded: statusKey === 'DEGRADED' ? 1 : 0,
               unavailable: statusKey === 'UNAVAILABLE' ? 1 : 0,
               missing: statusKey === 'MISSING' ? 1 : 0,
+              slow_latency: 0,
+              rate_limit: 0,
+              server_error: 0,
+              client_error: 0,
+              network_error: 0,
+              content_mismatch: 0,
             };
+
+            // 为黄色和红色状态随机选择一个细分原因（模拟真实后端行为）
+            if (statusKey === 'DEGRADED') {
+              if (Math.random() > 0.5) {
+                statusCounts.slow_latency = 1;
+              } else {
+                statusCounts.rate_limit = 1;
+              }
+            } else if (statusKey === 'UNAVAILABLE') {
+              const rand = Math.random();
+              if (rand > 0.75) {
+                statusCounts.server_error = 1;
+              } else if (rand > 0.5) {
+                statusCounts.client_error = 1;
+              } else if (rand > 0.25) {
+                statusCounts.network_error = 1;
+              } else {
+                statusCounts.content_mismatch = 1;
+              }
+            }
 
             return {
               index,

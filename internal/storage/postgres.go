@@ -79,6 +79,7 @@ func (s *PostgresStorage) Init() error {
 		provider TEXT NOT NULL,
 		service TEXT NOT NULL,
 		status INTEGER NOT NULL,
+		sub_status TEXT NOT NULL DEFAULT '',
 		latency INTEGER NOT NULL,
 		timestamp BIGINT NOT NULL
 	);
@@ -92,6 +93,40 @@ func (s *PostgresStorage) Init() error {
 		return fmt.Errorf("初始化 PostgreSQL 数据库失败: %w", err)
 	}
 
+	// 兼容旧数据库：添加 sub_status 列（如果不存在）
+	if err := s.ensureSubStatusColumn(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ensureSubStatusColumn 在旧表上添加 sub_status 列（向后兼容）
+func (s *PostgresStorage) ensureSubStatusColumn() error {
+	// PostgreSQL 使用 information_schema 查询列是否存在
+	checkQuery := `
+		SELECT COUNT(*)
+		FROM information_schema.columns
+		WHERE table_name = 'probe_history' AND column_name = 'sub_status'
+	`
+
+	var count int
+	err := s.pool.QueryRow(s.ctx, checkQuery).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("查询 PostgreSQL 表结构失败: %w", err)
+	}
+
+	if count > 0 {
+		return nil // 列已存在，无需添加
+	}
+
+	// 添加列
+	alterQuery := `ALTER TABLE probe_history ADD COLUMN sub_status TEXT NOT NULL DEFAULT ''`
+	if _, err := s.pool.Exec(s.ctx, alterQuery); err != nil {
+		return fmt.Errorf("添加 sub_status 列失败: %w", err)
+	}
+
+	log.Println("[Storage] 已为 probe_history 表添加 sub_status 列 (PostgreSQL)")
 	return nil
 }
 
@@ -104,8 +139,8 @@ func (s *PostgresStorage) Close() error {
 // SaveRecord 保存探测记录
 func (s *PostgresStorage) SaveRecord(record *ProbeRecord) error {
 	query := `
-		INSERT INTO probe_history (provider, service, status, latency, timestamp)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO probe_history (provider, service, status, sub_status, latency, timestamp)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
 
@@ -113,6 +148,7 @@ func (s *PostgresStorage) SaveRecord(record *ProbeRecord) error {
 		record.Provider,
 		record.Service,
 		record.Status,
+		string(record.SubStatus),
 		record.Latency,
 		record.Timestamp,
 	).Scan(&record.ID)
@@ -127,7 +163,7 @@ func (s *PostgresStorage) SaveRecord(record *ProbeRecord) error {
 // GetLatest 获取最新记录
 func (s *PostgresStorage) GetLatest(provider, service string) (*ProbeRecord, error) {
 	query := `
-		SELECT id, provider, service, status, latency, timestamp
+		SELECT id, provider, service, status, sub_status, latency, timestamp
 		FROM probe_history
 		WHERE provider = $1 AND service = $2
 		ORDER BY timestamp DESC
@@ -135,11 +171,13 @@ func (s *PostgresStorage) GetLatest(provider, service string) (*ProbeRecord, err
 	`
 
 	var record ProbeRecord
+	var subStatusStr string
 	err := s.pool.QueryRow(s.ctx, query, provider, service).Scan(
 		&record.ID,
 		&record.Provider,
 		&record.Service,
 		&record.Status,
+		&subStatusStr,
 		&record.Latency,
 		&record.Timestamp,
 	)
@@ -152,13 +190,14 @@ func (s *PostgresStorage) GetLatest(provider, service string) (*ProbeRecord, err
 		return nil, fmt.Errorf("查询 PostgreSQL 最新记录失败: %w", err)
 	}
 
+	record.SubStatus = SubStatus(subStatusStr)
 	return &record, nil
 }
 
 // GetHistory 获取历史记录
 func (s *PostgresStorage) GetHistory(provider, service string, since time.Time) ([]*ProbeRecord, error) {
 	query := `
-		SELECT id, provider, service, status, latency, timestamp
+		SELECT id, provider, service, status, sub_status, latency, timestamp
 		FROM probe_history
 		WHERE provider = $1 AND service = $2 AND timestamp >= $3
 		ORDER BY timestamp ASC
@@ -173,17 +212,20 @@ func (s *PostgresStorage) GetHistory(provider, service string, since time.Time) 
 	var records []*ProbeRecord
 	for rows.Next() {
 		var record ProbeRecord
+		var subStatusStr string
 		err := rows.Scan(
 			&record.ID,
 			&record.Provider,
 			&record.Service,
 			&record.Status,
+			&subStatusStr,
 			&record.Latency,
 			&record.Timestamp,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("扫描 PostgreSQL 记录失败: %w", err)
 		}
+		record.SubStatus = SubStatus(subStatusStr)
 		records = append(records, &record)
 	}
 
