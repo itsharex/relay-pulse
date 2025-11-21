@@ -1,4 +1,5 @@
-import { Activity, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Activity, CheckCircle, AlertTriangle, Sparkles } from 'lucide-react';
+import { FEEDBACK_URL } from '../constants';
 
 interface HeaderProps {
   stats: {
@@ -17,7 +18,7 @@ export function Header({ stats }: HeaderProps) {
             <Activity className="w-6 h-6 text-cyan-400" />
           </div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400">
-            Service Horizon
+            RelayPulse
           </h1>
         </div>
         <p className="text-slate-400 text-sm flex items-center gap-2">
@@ -26,7 +27,17 @@ export function Header({ stats }: HeaderProps) {
         </p>
       </div>
 
-      <div className="flex gap-4 text-sm">
+      <div className="flex flex-col md:flex-row gap-4 text-sm md:items-center">
+        <a
+          href={FEEDBACK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-full md:w-auto items-center justify-center gap-2 px-4 py-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 text-cyan-200 font-semibold tracking-wide shadow-[0_0_12px_rgba(6,182,212,0.25)] hover:bg-cyan-500/20 transition"
+        >
+          <Sparkles size={14} />
+          推荐服务商
+        </a>
+
         <div className="px-4 py-2 rounded-xl bg-slate-900/50 border border-slate-800 backdrop-blur-sm flex items-center gap-3 shadow-lg">
           <div className="p-1.5 rounded-full bg-emerald-500/10 text-emerald-400">
             <CheckCircle size={16} />

@@ -53,3 +53,8 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 // 是否使用模拟数据
 export const USE_MOCK_DATA =
   (import.meta.env.VITE_USE_MOCK_DATA || '').toLowerCase() === 'true';
+
+// 反馈/推荐服务商链接
+export const FEEDBACK_URL =
+  import.meta.env.VITE_FEEDBACK_URL ||
+  'https://github.com/prehisle/relay-pulse/issues/new?template=provider.md&labels=provider';

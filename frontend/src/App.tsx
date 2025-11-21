@@ -5,6 +5,7 @@ import { Controls } from './components/Controls';
 import { StatusTable } from './components/StatusTable';
 import { StatusCard } from './components/StatusCard';
 import { Tooltip } from './components/Tooltip';
+import { Footer } from './components/Footer';
 import { useMonitorData } from './hooks/useMonitorData';
 import { trackPeriodChange, trackServiceFilter, trackEvent } from './utils/analytics';
 import type { ViewMode, SortConfig, TooltipState, ProcessedMonitorData } from './types';
@@ -173,6 +174,9 @@ function App() {
             )}
           </>
         )}
+
+        {/* 免责声明 */}
+        <Footer />
       </div>
     </div>
   );
