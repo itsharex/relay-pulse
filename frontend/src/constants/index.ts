@@ -47,8 +47,8 @@ export const STATUS: Record<string, StatusConfig> = {
   },
 };
 
-// API 基础 URL
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// API 基础 URL（使用相对路径，自动适配当前域名）
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // 是否使用模拟数据
 export const USE_MOCK_DATA =
