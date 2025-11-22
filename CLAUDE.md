@@ -181,16 +181,22 @@ frontend/src/
 ```
 HTTP 响应
 ├── 2xx + 快速 + 内容匹配 → 🟢 绿色
-├── 2xx + 慢速 → 🟡 波动 (slow_latency)
-├── 2xx + 内容不匹配 → 🔴 不可用 (content_mismatch)
+├── 2xx + 慢速 + 内容匹配 → 🟡 波动 (slow_latency)
+├── 2xx + 内容不匹配 → 🔴 不可用 (content_mismatch)  ← 无论快慢
 ├── 3xx → 🟢 绿色（重定向）
 ├── 400 → 🔴 不可用 (invalid_request)
 ├── 401/403 → 🔴 不可用 (auth_error)
-├── 429 → 🟡 波动 (rate_limit)
+├── 429 → 🟡 波动 (rate_limit)  ← 不做内容校验
 ├── 其他 4xx → 🔴 不可用 (client_error)
 ├── 5xx → 🔴 不可用 (server_error)
 └── 网络错误 → 🔴 不可用 (network_error)
 ```
+
+**内容校验（`success_contains`）**：
+- 仅对 **2xx 响应**（绿色和慢速黄色）执行内容校验
+- **429 限流**：响应体是错误信息，不做内容校验
+- **红色状态**：已是最差状态，不需要再校验
+- 若 2xx 响应但内容不匹配 → 降级为 🔴 红色（语义失败）
 
 **细分状态（SubStatus）**：
 

@@ -109,15 +109,24 @@ func (p *Prober) Probe(ctx context.Context, cfg *config.ServiceConfig) *ProbeRes
 }
 
 // evaluateStatus 在基础状态上叠加响应内容匹配规则
+// 对所有 2xx 响应（绿色和慢速黄色）进行内容校验
+// 红色（已失败）和 429 黄色（非正常响应）不做校验
 func evaluateStatus(baseStatus int, baseSubStatus storage.SubStatus, body []byte, successContains string) (int, storage.SubStatus) {
 	if successContains == "" {
 		return baseStatus, baseSubStatus
 	}
-	if baseStatus != 1 {
-		// 只有在 HTTP 判定为"绿"时才用内容做二次校验
+
+	// 红色已是最差状态，不需要校验
+	if baseStatus == 0 {
 		return baseStatus, baseSubStatus
 	}
 
+	// 429 限流：响应体是错误信息，不做内容校验
+	if baseStatus == 2 && baseSubStatus == storage.SubStatusRateLimit {
+		return baseStatus, baseSubStatus
+	}
+
+	// 对 2xx 响应（绿色或慢速黄色）做内容校验
 	if len(body) == 0 {
 		// 没有响应内容，降级为红
 		return 0, storage.SubStatusContentMismatch
