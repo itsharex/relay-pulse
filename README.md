@@ -67,6 +67,7 @@ go run cmd/server/main.go
 | ⚙️ 配置监控项 | [配置手册](docs/user/config.md#监控项配置) |
 | 🔧 排查问题 | [运维手册 - 故障排查](docs/user/operations.md#故障排查) |
 | 🏗️ 了解架构 | [架构概览](docs/developer/overview.md) |
+| 🚀 发布新版本 | [版本发布指南](docs/developer/release.md) |
 | 🔄 3个月后回来 | [快速回忆清单](docs/developer/quick-recall.md) |
 
 ---
@@ -79,6 +80,7 @@ go run cmd/server/main.go
 ### 开发者文档
 - [快速回忆清单](docs/developer/quick-recall.md) - ⭐ 3个月后快速重新上手
 - [架构概览](docs/developer/overview.md) - 系统设计、模块说明
+- [版本发布指南](docs/developer/release.md) - 🆕 版本号管理、Docker 镜像发布
 - [贡献指南](CONTRIBUTING.md) - 代码规范、提交规范
 - [部署手册](docs/deployment.md) - 多环境部署、CI/CD 建议
 
