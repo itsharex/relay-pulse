@@ -3,8 +3,10 @@ package config
 import (
 	"context"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -17,6 +19,8 @@ type Watcher struct {
 	watcher      *fsnotify.Watcher
 	onReload     func(*AppConfig)
 	debounceTime time.Duration
+	watchMu      sync.Mutex
+	watchedDirs  map[string]struct{}
 }
 
 // NewWatcher 创建配置监听器
@@ -40,13 +44,18 @@ func (w *Watcher) Start(ctx context.Context) error {
 	// 监听父目录而非文件本身，避免编辑器 rename 导致监听失效
 	dir := filepath.Dir(w.filename)
 	targetFile := filepath.Clean(w.filename) // 归一化配置文件路径
-	if err := w.watcher.Add(dir); err != nil {
+	if err := w.addWatch(dir); err != nil {
 		return err
 	}
 
 	// data 目录（用于 body include JSON）
 	dataDir := filepath.Clean(filepath.Join(dir, "data"))
 	dataDirPrefix := dataDir + string(filepath.Separator) // 预计算前缀
+	if info, err := os.Stat(dataDir); err == nil && info.IsDir() {
+		if err := w.addWatch(dataDir); err != nil {
+			return err
+		}
+	}
 
 	log.Printf("[Config] 开始监听配置文件: %s (监听目录: %s)", w.filename, dir)
 
@@ -85,6 +94,13 @@ func (w *Watcher) Start(ctx context.Context) error {
 					})
 				}
 
+				// 处理 Remove/Rename：重新监听，避免 inode 变化后事件丢失
+				if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 && (isConfigFile || isDataFile) {
+					if err := w.rewatchPath(eventPath); err != nil {
+						log.Printf("[Config] 重新监听目录失败: %v", err)
+					}
+				}
+
 			case err, ok := <-w.watcher.Errors:
 				if !ok {
 					return
@@ -117,4 +133,39 @@ func (w *Watcher) reload() {
 // Stop 停止监听
 func (w *Watcher) Stop() error {
 	return w.watcher.Close()
+}
+
+// addWatch 为目录添加监听（自动去重）
+func (w *Watcher) addWatch(dir string) error {
+	dir = filepath.Clean(dir)
+	if dir == "" {
+		return nil
+	}
+
+	w.watchMu.Lock()
+	if w.watchedDirs == nil {
+		w.watchedDirs = make(map[string]struct{})
+	}
+	if _, exists := w.watchedDirs[dir]; exists {
+		w.watchMu.Unlock()
+		return nil
+	}
+	w.watchMu.Unlock()
+
+	if err := w.watcher.Add(dir); err != nil {
+		return err
+	}
+
+	w.watchMu.Lock()
+	w.watchedDirs[dir] = struct{}{}
+	w.watchMu.Unlock()
+	return nil
+}
+
+// rewatchPath 确保替换后的文件所在目录继续被监听
+func (w *Watcher) rewatchPath(path string) error {
+	if path == "" {
+		return nil
+	}
+	return w.addWatch(filepath.Dir(path))
 }
