@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	_ "modernc.org/sqlite" // 纯Go实现的SQLite驱动
@@ -155,6 +156,67 @@ func (s *SQLiteStorage) ensureChannelColumn() error {
 	}
 
 	fmt.Println("[Storage] 已为 probe_history 表添加 channel 列")
+	return nil
+}
+
+// MigrateChannelData 根据配置将 channel 为空的旧数据迁移到指定 channel
+func (s *SQLiteStorage) MigrateChannelData(mappings []ChannelMigrationMapping) error {
+	var pending int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM probe_history WHERE channel = ''`).Scan(&pending); err != nil {
+		return fmt.Errorf("检测 channel 迁移需求失败: %w", err)
+	}
+
+	if pending == 0 {
+		return nil
+	}
+
+	if len(mappings) == 0 {
+		log.Printf("[Storage] 检测到 %d 条 channel 为空的历史记录，但未提供迁移映射", pending)
+		return nil
+	}
+
+	log.Printf("[Storage] 检测到 %d 条 channel 为空的历史记录，开始迁移", pending)
+
+	var totalUpdated int64
+	for _, mapping := range mappings {
+		if mapping.Channel == "" {
+			continue
+		}
+
+		result, err := s.db.Exec(
+			`UPDATE probe_history SET channel = ? WHERE channel = '' AND provider = ? AND service = ?`,
+			mapping.Channel, mapping.Provider, mapping.Service,
+		)
+		if err != nil {
+			return fmt.Errorf("迁移 channel 数据失败 (provider=%s service=%s): %w", mapping.Provider, mapping.Service, err)
+		}
+
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("获取迁移影响行数失败 (provider=%s service=%s): %w", mapping.Provider, mapping.Service, err)
+		}
+
+		if affected > 0 {
+			totalUpdated += affected
+			log.Printf(
+				"[Storage] 已迁移 %d 条记录 -> channel=%s (provider=%s, service=%s)",
+				affected, mapping.Channel, mapping.Provider, mapping.Service,
+			)
+		}
+	}
+
+	if totalUpdated == 0 {
+		log.Printf("[Storage] channel 迁移：没有匹配的记录需要更新（可能缺少配置或 channel 仍为空）")
+		return nil
+	}
+
+	remaining := int64(pending) - totalUpdated
+	if remaining > 0 {
+		log.Printf("[Storage] channel 迁移完成，共更新 %d 条记录，仍有 %d 条由于缺少配置未更新", totalUpdated, remaining)
+	} else {
+		log.Printf("[Storage] channel 迁移完成，共更新 %d 条记录", totalUpdated)
+	}
+
 	return nil
 }
 

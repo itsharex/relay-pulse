@@ -21,6 +21,28 @@ var (
 	BuildTime = "unknown"
 )
 
+// buildChannelMigrationMappings 从配置构建 channel 迁移映射（同一 provider+service 只取第一个）
+func buildChannelMigrationMappings(monitors []config.ServiceConfig) []storage.ChannelMigrationMapping {
+	seen := make(map[string]bool)
+	mappings := make([]storage.ChannelMigrationMapping, 0, len(monitors))
+
+	for _, monitor := range monitors {
+		key := monitor.Provider + "|" + monitor.Service
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		mappings = append(mappings, storage.ChannelMigrationMapping{
+			Provider: monitor.Provider,
+			Service:  monitor.Service,
+			Channel:  monitor.Channel,
+		})
+	}
+
+	return mappings
+}
+
 func main() {
 	// 打印版本信息
 	log.Printf("🚀 Relay Pulse Monitor")
@@ -54,6 +76,11 @@ func main() {
 
 	if err := store.Init(); err != nil {
 		log.Fatalf("❌ 初始化数据库失败: %v", err)
+	}
+
+	// 自动迁移旧数据的 channel
+	if err := store.MigrateChannelData(buildChannelMigrationMappings(cfg.Monitors)); err != nil {
+		log.Printf("⚠️ channel 数据迁移失败: %v", err)
 	}
 
 	storageType := cfg.Storage.Type

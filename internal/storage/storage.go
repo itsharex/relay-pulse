@@ -55,6 +55,13 @@ type StatusCounts struct {
 	ContentMismatch int `json:"content_mismatch"` // 红色-内容校验失败次数
 }
 
+// ChannelMigrationMapping 表示 provider/service 对应的目标 channel
+type ChannelMigrationMapping struct {
+	Provider string
+	Service  string
+	Channel  string
+}
+
 // Storage 存储接口
 type Storage interface {
 	// Init 初始化存储
@@ -74,4 +81,7 @@ type Storage interface {
 
 	// CleanOldRecords 清理旧记录（保留最近N天）
 	CleanOldRecords(days int) error
+
+	// MigrateChannelData 将 channel 为空的历史记录迁移到最新配置
+	MigrateChannelData(mappings []ChannelMigrationMapping) error
 }
