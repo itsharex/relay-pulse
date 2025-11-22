@@ -21,12 +21,17 @@ var (
 	BuildTime = "unknown"
 )
 
-// buildChannelMigrationMappings 从配置构建 channel 迁移映射（同一 provider+service 只取第一个）
+// buildChannelMigrationMappings 从配置构建 channel 迁移映射（同一 provider+service 取第一个非空 channel）
 func buildChannelMigrationMappings(monitors []config.ServiceConfig) []storage.ChannelMigrationMapping {
 	seen := make(map[string]bool)
 	mappings := make([]storage.ChannelMigrationMapping, 0, len(monitors))
 
 	for _, monitor := range monitors {
+		// 跳过空 channel
+		if monitor.Channel == "" {
+			continue
+		}
+
 		key := monitor.Provider + "|" + monitor.Service
 		if seen[key] {
 			continue
@@ -109,6 +114,10 @@ func main() {
 		// 配置热更新回调
 		sched.UpdateConfig(newCfg)
 		server.UpdateConfig(newCfg)
+		// 重新运行 channel 迁移（支持运行时添加 channel）
+		if err := store.MigrateChannelData(buildChannelMigrationMappings(newCfg.Monitors)); err != nil {
+			log.Printf("⚠️ 热更新时 channel 迁移失败: %v", err)
+		}
 		// 立即触发一次巡检，确保新配置立即生效
 		sched.TriggerNow()
 	})
