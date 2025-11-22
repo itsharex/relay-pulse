@@ -130,7 +130,7 @@ export function useMonitorData({
               : 0;
 
             return {
-              id: `${item.provider}-${item.service}`,
+              id: `${item.provider}-${item.service}-${item.channel || 'default'}`,
               providerId: item.provider,
               providerName: item.provider,
               providerUrl: validateUrl(item.provider_url),
