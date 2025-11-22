@@ -3,8 +3,14 @@ name: Docker Image CI/CD
 on:
   push:
     tags:
-      - 'v*.*.*'  # 匹配 v0.1.0, v1.0.0 等
+      - 'v*.*.*'  # 只在推送 tag 时触发（v0.1.0, v1.0.0 等）
   workflow_dispatch:  # 允许手动触发
+    inputs:
+      multi_arch:
+        description: '构建多架构镜像 (amd64 + arm64)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -20,6 +26,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU (for multi-arch)
+        if: inputs.multi_arch == true
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -63,11 +73,22 @@ jobs:
           flavor: |
             latest=false
 
+      - name: Determine platforms
+        id: platforms
+        run: |
+          if [[ "${{ inputs.multi_arch }}" == "true" ]]; then
+            echo "platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+            echo "📦 构建多架构: amd64 + arm64"
+          else
+            echo "platforms=linux/amd64" >> $GITHUB_OUTPUT
+            echo "📦 仅构建: amd64"
+          fi
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ steps.platforms.outputs.platforms }}
           push: true
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
@@ -91,6 +112,7 @@ jobs:
           echo "- **Version**: ${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ steps.meta.outputs.git_commit }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Built**: ${{ steps.meta.outputs.build_time }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms**: ${{ steps.platforms.outputs.platforms }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pull Command" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
