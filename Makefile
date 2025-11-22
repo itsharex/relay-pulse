@@ -15,6 +15,10 @@ BINARY_PATH=./$(BINARY_NAME)
 # Main package
 MAIN_PACKAGE=./cmd/server
 
+# Build script
+BUILD_SCRIPT=./scripts/build.sh
+DOCKER_BUILD_SCRIPT=./scripts/docker-build.sh
+
 # Air hot reload tool
 # 优先使用 PATH 中的 air，如果没有则尝试 Go bin 目录
 AIR_CMD=$(shell command -v air 2>/dev/null || echo "$(shell go env GOPATH)/bin/air")
@@ -27,26 +31,50 @@ CONFIG ?= config.yaml
 # 开发环境 CORS 配置（允许前端开发服务器访问）
 MONITOR_CORS_ORIGINS ?= http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,http://localhost:3000
 
-.PHONY: help build run dev test fmt clean install-air
+.PHONY: help build run dev test fmt clean install-air release docker-build
 
 # 默认目标：显示帮助
 help:
 	@echo "可用命令:"
-	@echo "  make build       - 编译生产版本"
-	@echo "  make run         - 直接运行（无热重载）"
-	@echo "  make dev         - 开发模式（热重载，需要air）"
-	@echo "  make test        - 运行测试"
-	@echo "  make fmt         - 格式化代码"
-	@echo "  make clean       - 清理编译产物"
-	@echo "  make install-air - 安装air热重载工具"
+	@echo "  make build         - 编译生产版本（注入版本信息）"
+	@echo "  make release       - 发布构建（需指定 VERSION=vX.Y.Z）"
+	@echo "  make docker-build  - 构建 Docker 镜像"
+	@echo "  make run           - 直接运行（无热重载）"
+	@echo "  make dev           - 开发模式（热重载，需要air）"
+	@echo "  make test          - 运行测试"
+	@echo "  make fmt           - 格式化代码"
+	@echo "  make clean         - 清理编译产物"
+	@echo "  make install-air   - 安装air热重载工具"
 	@echo ""
 	@echo "开发环境已自动配置 CORS，允许前端开发服务器访问（端口 5173-5175, 3000）"
 
-# 编译二进制
+# 编译二进制（使用构建脚本，自动注入版本信息）
 build:
-	@echo "正在编译 $(BINARY_NAME)..."
-	$(GOBUILD) -o $(BINARY_PATH) $(MAIN_PACKAGE)
-	@echo "编译完成: $(BINARY_PATH)"
+	@if [ -f "$(BUILD_SCRIPT)" ]; then \
+		bash $(BUILD_SCRIPT); \
+	else \
+		echo "警告: $(BUILD_SCRIPT) 不存在，使用简单构建"; \
+		$(GOBUILD) -o $(BINARY_PATH) $(MAIN_PACKAGE); \
+	fi
+
+# 发布构建（需要指定版本号）
+release:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "错误: 请指定版本号"; \
+		echo "用法: make release VERSION=v1.0.0"; \
+		exit 1; \
+	fi
+	@echo "正在构建发布版本 $(VERSION)..."
+	@VERSION=$(VERSION) bash $(BUILD_SCRIPT)
+
+# 构建 Docker 镜像
+docker-build:
+	@if [ -f "$(DOCKER_BUILD_SCRIPT)" ]; then \
+		bash $(DOCKER_BUILD_SCRIPT); \
+	else \
+		echo "错误: $(DOCKER_BUILD_SCRIPT) 不存在"; \
+		exit 1; \
+	fi
 
 # 直接运行（不编译）
 run:

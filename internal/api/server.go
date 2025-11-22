@@ -14,24 +14,13 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
+	"monitor/internal/buildinfo"
 	"monitor/internal/config"
 	"monitor/internal/storage"
 )
 
 //go:embed frontend/dist
 var frontendFS embed.FS
-
-var (
-	// 版本信息（通过 ldflags 注入）
-	Version   = "dev"
-	GitCommit = "unknown"
-	BuildTime = "unknown"
-)
-
-// 版本信息获取函数
-func getVersion() string   { return Version }
-func getGitCommit() string { return GitCommit }
-func getBuildTime() string { return BuildTime }
 
 // Server HTTP服务器
 type Server struct {
@@ -74,10 +63,12 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 
 	// 版本信息 API
 	router.GET("/api/version", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
 		c.JSON(http.StatusOK, gin.H{
-			"version":    getVersion(),
-			"git_commit": getGitCommit(),
-			"build_time": getBuildTime(),
+			"version":    buildinfo.GetVersion(),
+			"git_commit": buildinfo.GetGitCommit(),
+			"build_time": buildinfo.GetBuildTime(),
+			"go_version": buildinfo.GetGoVersion(),
 		})
 	})
 

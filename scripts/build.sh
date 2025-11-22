@@ -3,10 +3,11 @@
 
 set -e
 
-# 获取版本信息
-VERSION=${VERSION:-"$(git describe --tags --always --dirty 2>/dev/null || echo 'dev')"}
-GIT_COMMIT=${GIT_COMMIT:-"$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"}
-BUILD_TIME=${BUILD_TIME:-"$(date -u '+%Y-%m-%d %H:%M:%S UTC')"}
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 加载统一的版本信息
+source "${SCRIPT_DIR}/version.sh"
 
 echo "🔨 构建 Relay Pulse Monitor"
 echo "📦 Version: $VERSION"
@@ -17,12 +18,9 @@ echo ""
 # 构建二进制文件
 go build \
   -ldflags="-s -w \
-  -X main.Version=${VERSION} \
-  -X main.GitCommit=${GIT_COMMIT} \
-  -X 'main.BuildTime=${BUILD_TIME}' \
-  -X monitor/internal/api.Version=${VERSION} \
-  -X monitor/internal/api.GitCommit=${GIT_COMMIT} \
-  -X 'monitor/internal/api.BuildTime=${BUILD_TIME}'" \
+  -X monitor/internal/buildinfo.Version=${VERSION} \
+  -X monitor/internal/buildinfo.GitCommit=${GIT_COMMIT} \
+  -X 'monitor/internal/buildinfo.BuildTime=${BUILD_TIME}'" \
   -o monitor \
   ./cmd/server
 

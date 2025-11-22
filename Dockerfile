@@ -57,18 +57,28 @@ ARG BUILD_TIME=unknown
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH:-amd64} \
     go build \
     -ldflags="-s -w \
-    -X main.Version=${VERSION} \
-    -X main.GitCommit=${GIT_COMMIT} \
-    -X main.BuildTime=${BUILD_TIME} \
-    -X monitor/internal/api.Version=${VERSION} \
-    -X monitor/internal/api.GitCommit=${GIT_COMMIT} \
-    -X monitor/internal/api.BuildTime=${BUILD_TIME}" \
+    -X monitor/internal/buildinfo.Version=${VERSION} \
+    -X monitor/internal/buildinfo.GitCommit=${GIT_COMMIT} \
+    -X 'monitor/internal/buildinfo.BuildTime=${BUILD_TIME}'" \
     -o /build/monitor ./cmd/server
 
 # ============================================
 # Stage 3: Runtime (Minimal Image)
 # ============================================
 FROM alpine:3.19
+
+# OCI 镜像标签
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+
+LABEL org.opencontainers.image.title="Relay Pulse Monitor" \
+      org.opencontainers.image.description="Enterprise LLM service availability monitoring system" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_TIME}" \
+      org.opencontainers.image.source="https://github.com/prehisle/relay-pulse" \
+      org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 

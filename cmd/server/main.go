@@ -9,16 +9,10 @@ import (
 	"time"
 
 	"monitor/internal/api"
+	"monitor/internal/buildinfo"
 	"monitor/internal/config"
 	"monitor/internal/scheduler"
 	"monitor/internal/storage"
-)
-
-var (
-	// 版本信息（通过 ldflags 注入）
-	Version   = "dev"
-	GitCommit = "unknown"
-	BuildTime = "unknown"
 )
 
 // buildChannelMigrationMappings 从配置构建 channel 迁移映射（同一 provider+service 取第一个非空 channel）
@@ -51,9 +45,9 @@ func buildChannelMigrationMappings(monitors []config.ServiceConfig) []storage.Ch
 func main() {
 	// 打印版本信息
 	log.Printf("🚀 Relay Pulse Monitor")
-	log.Printf("📦 Version: %s", Version)
-	log.Printf("🔖 Git Commit: %s", GitCommit)
-	log.Printf("🕐 Build Time: %s", BuildTime)
+	log.Printf("📦 Version: %s", buildinfo.GetVersion())
+	log.Printf("🔖 Git Commit: %s", buildinfo.GetGitCommit())
+	log.Printf("🕐 Build Time: %s", buildinfo.GetBuildTime())
 	log.Println()
 	// 配置文件路径
 	configFile := "config.yaml"
