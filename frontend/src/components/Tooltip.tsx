@@ -1,11 +1,23 @@
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import type { TooltipState } from '../types';
 import { availabilityToColor } from '../utils/color';
+import { createMediaQueryEffect } from '../utils/mediaQuery';
 
 interface TooltipProps {
   tooltip: TooltipState;
+  onClose?: () => void;
 }
 
-export function Tooltip({ tooltip }: TooltipProps) {
+export function Tooltip({ tooltip, onClose }: TooltipProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 检测是否为移动端（兼容 Safari ≤13）
+  useEffect(() => {
+    const cleanup = createMediaQueryEffect('mobile', setIsMobile);
+    return cleanup;
+  }, []);
+
   if (!tooltip.show || !tooltip.data) return null;
 
   // 状态计数统计（向后兼容）
@@ -24,7 +36,7 @@ export function Tooltip({ tooltip }: TooltipProps) {
     content_mismatch: 0,
   };
 
-  // 状态统计（不再显示"无数据"，因为运行时不会产生 status=3）
+  // 状态统计
   const statusSummary = [
     { key: 'available', emoji: '🟢', label: '可用', value: counts.available },
     { key: 'degraded', emoji: '🟡', label: '波动', value: counts.degraded },
@@ -47,6 +59,121 @@ export function Tooltip({ tooltip }: TooltipProps) {
     { key: 'content_mismatch', label: '内容校验失败', value: counts.content_mismatch },
   ].filter(item => item.value > 0);
 
+  // Tooltip 内容（桌面和移动端共用）
+  const TooltipContent = () => (
+    <>
+      <div className="text-slate-400 text-center">
+        {new Date(tooltip.data!.timestampNum * 1000).toLocaleString('zh-CN')}
+      </div>
+      {tooltip.data!.availability >= 0 && (
+        <div
+          className="font-medium text-center text-sm md:text-xs"
+          style={{ color: availabilityToColor(tooltip.data!.availability) }}
+        >
+          可用率: {tooltip.data!.availability.toFixed(2)}%
+        </div>
+      )}
+      {tooltip.data!.latency > 0 && (
+        <div className="text-slate-500 text-[10px] text-center">
+          延迟: {tooltip.data!.latency}ms
+        </div>
+      )}
+
+      {/* 状态统计 */}
+      <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
+        {statusSummary.map((item) => (
+          <div key={item.key} className="flex justify-between items-center gap-3 text-[11px]">
+            <span className="text-slate-300">
+              {item.emoji} {item.label}
+            </span>
+            <span className="text-slate-100 font-semibold tabular-nums">
+              {item.value} 次
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* 黄色波动细分 */}
+      {degradedSubstatus.length > 0 && (
+        <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
+          <div className="text-[10px] text-slate-400 mb-0.5">🟡 波动细分</div>
+          {degradedSubstatus.map((item) => (
+            <div key={item.key} className="flex justify-between items-center gap-3 text-[10px] pl-2">
+              <span className="text-slate-400">• {item.label}</span>
+              <span className="text-slate-200 tabular-nums">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 红色不可用细分 */}
+      {unavailableSubstatus.length > 0 && (
+        <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
+          <div className="text-[10px] text-slate-400 mb-0.5">🔴 不可用细分</div>
+          {unavailableSubstatus.map((item) => (
+            <div key={item.key} className="flex justify-between items-center gap-3 text-[10px] pl-2">
+              <span className="text-slate-400">• {item.label}</span>
+              <span className="text-slate-200 tabular-nums">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  // 移动端：底部 Sheet
+  if (isMobile) {
+    return (
+      <div
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <div
+          className="absolute bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700 rounded-t-2xl p-4 pb-6 animate-slide-up"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            animation: 'slideUp 0.2s ease-out',
+          }}
+        >
+          {/* 拖动指示条 */}
+          <div className="flex justify-center mb-3">
+            <div className="w-10 h-1 bg-slate-700 rounded-full" />
+          </div>
+
+          {/* 头部 */}
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-semibold text-slate-200">数据详情</h3>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+              aria-label="关闭"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* 内容 */}
+          <div className="flex flex-col gap-2 text-xs">
+            <TooltipContent />
+          </div>
+        </div>
+
+        {/* CSS 动画 */}
+        <style>{`
+          @keyframes slideUp {
+            from {
+              transform: translateY(100%);
+            }
+            to {
+              transform: translateY(0);
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // 桌面端：悬浮 Tooltip
   return (
     <div
       className="fixed z-50 pointer-events-none transition-opacity duration-200"
@@ -57,60 +184,7 @@ export function Tooltip({ tooltip }: TooltipProps) {
       }}
     >
       <div className="bg-slate-900/95 backdrop-blur-md text-slate-200 text-xs p-3 rounded-lg border border-slate-700 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] flex flex-col gap-2 min-w-[180px]">
-        <div className="text-slate-400 text-center">
-          {new Date(tooltip.data.timestampNum * 1000).toLocaleString('zh-CN')}
-        </div>
-        {tooltip.data.availability >= 0 && (
-          <div
-            className="font-medium text-center"
-            style={{ color: availabilityToColor(tooltip.data.availability) }}
-          >
-            可用率: {tooltip.data.availability.toFixed(2)}%
-          </div>
-        )}
-        {tooltip.data.latency > 0 && (
-          <div className="text-slate-500 text-[10px] text-center">延迟: {tooltip.data.latency}ms</div>
-        )}
-
-        {/* 状态统计 */}
-        <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
-          {statusSummary.map((item) => (
-            <div key={item.key} className="flex justify-between items-center gap-3 text-[11px]">
-              <span className="text-slate-300">
-                {item.emoji} {item.label}
-              </span>
-              <span className="text-slate-100 font-semibold tabular-nums">
-                {item.value} 次
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* 黄色波动细分 */}
-        {degradedSubstatus.length > 0 && (
-          <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
-            <div className="text-[10px] text-slate-400 mb-0.5">🟡 波动细分</div>
-            {degradedSubstatus.map((item) => (
-              <div key={item.key} className="flex justify-between items-center gap-3 text-[10px] pl-2">
-                <span className="text-slate-400">• {item.label}</span>
-                <span className="text-slate-200 tabular-nums">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 红色不可用细分 */}
-        {unavailableSubstatus.length > 0 && (
-          <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
-            <div className="text-[10px] text-slate-400 mb-0.5">🔴 不可用细分</div>
-            {unavailableSubstatus.map((item) => (
-              <div key={item.key} className="flex justify-between items-center gap-3 text-[10px] pl-2">
-                <span className="text-slate-400">• {item.label}</span>
-                <span className="text-slate-200 tabular-nums">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <TooltipContent />
 
         {/* 小三角箭头 */}
         <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-r border-b border-slate-700 transform rotate-45"></div>

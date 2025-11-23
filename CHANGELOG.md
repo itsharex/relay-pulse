@@ -1,6 +1,58 @@
 # 更新日志
 
-## [未发布] - 2025-11-21
+## [未发布] - 2025-11-23
+
+### 新增功能
+- **移动端响应式设计** (#2)
+  - 支持 45% 移动端用户，实现完整的移动适配
+  - 统一的媒体查询管理系统（`utils/mediaQuery.ts`）
+  - 兼容 Safari ≤13 和 iOS 13（自动回退到旧版 API）
+  - Vite HMR 安全（自动清理监听器，防止内存泄漏）
+
+### 改进
+- **响应式断点系统**
+  - Mobile (< 768px): Tooltip 底部 Sheet、热力图点击触发
+  - Tablet (< 960px): StatusTable 卡片视图、热力图数据聚合
+  - Desktop (≥ 960px): 完整表格视图、悬浮 Tooltip
+  - 使用 matchMedia API 替代 resize 监听，避免闪烁和高频触发
+
+- **移动端组件优化**
+  - Controls: 筛选器抽屉、横向滚动、44px 触摸目标
+  - StatusTable: 卡片列表视图、可展开详情、移动端排序菜单
+  - Tooltip: 底部 Sheet 带拖动指示条、遮罩层
+  - HeatmapBlock: 移动端禁用鼠标悬停，仅响应触摸/点击
+  - Header: 响应式 Logo、统计卡片
+  - Footer: 可折叠免责声明
+  - ExternalLink: 44px 最小触摸区域、ARIA 标签
+
+- **表单可访问性**
+  - Controls 中的 select 元素添加 id/name 属性
+  - 消除控制台 "form field element should have an id or name" 警告
+
+### 修复
+- **Tooltip 闪烁问题**
+  - 统一断点检测逻辑（StatusTable 和 heatmapAggregator 都使用 960px）
+  - 640-959px 平板区间不再出现卡片视图 + 未聚合热力图的不一致
+  - 移动端禁用鼠标悬停事件，避免与触摸事件冲突
+
+### 技术改进
+- **浏览器兼容性**
+  - Safari ≤13: `addListener/removeListener` API 自动回退
+  - 特性检测：`addEventListener` → `addListener` → 降级警告
+
+- **性能优化**
+  - 热力图数据聚合：模块级缓存，避免重复 matchMedia 初始化
+  - HMR 监听器清理：`import.meta.hot.dispose()` 钩子
+  - matchMedia 事件：仅在真正跨越断点时触发，而非每次像素变化
+
+- **代码组织**
+  - 集中断点定义：`BREAKPOINTS` 常量
+  - 统一工具函数：`createMediaQueryEffect()`, `addMediaQueryListener()`
+  - 类型安全：TypeScript 完整类型定义
+
+---
+
+## [2025-11-21]
 
 ### 新增功能
 - **服务商和赞助者链接跳转** (#1)

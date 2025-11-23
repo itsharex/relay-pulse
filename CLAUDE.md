@@ -152,6 +152,9 @@ frontend/src/
 ├── types/                 → TypeScript 类型定义
 ├── constants/             → 应用常量（API URLs、时间周期）
 ├── utils/                 → 工具函数
+│   ├── mediaQuery.ts     → 响应式断点管理（统一的 matchMedia API）
+│   ├── heatmapAggregator.ts → 热力图数据聚合
+│   └── color.ts          → 颜色工具函数
 └── App.tsx               → 主应用组件
 ```
 
@@ -160,6 +163,43 @@ frontend/src/
 - **TypeScript**: 使用 `types/` 中的接口实现完整类型安全
 - **Tailwind CSS**: Tailwind v4 实用优先的样式
 - **组件组合**: 小型、可复用组件
+- **响应式设计**: 移动优先，使用 matchMedia API 实现稳定断点检测
+
+### 响应式断点系统
+
+前端采用**统一的媒体查询管理系统**（`utils/mediaQuery.ts`），确保断点检测的一致性和浏览器兼容性：
+
+**断点定义** (`BREAKPOINTS`):
+- **mobile**: `< 768px` - Tooltip 底部 Sheet vs 悬浮提示
+- **tablet**: `< 960px` - StatusTable 卡片视图 vs 表格 + 热力图聚合
+
+**设计原则：**
+1. **使用 matchMedia API**：替代 `resize` 事件监听，避免高频触发
+2. **Safari ≤13 兼容**：自动回退到 `addListener/removeListener` API
+3. **HMR 安全**：在 Vite 热重载时自动清理监听器，防止内存泄漏
+4. **缓存优化**：模块级缓存断点状态，避免重复计算
+5. **事件隔离**：移动端禁用鼠标悬停事件，避免闪烁
+
+**使用示例：**
+```typescript
+import { createMediaQueryEffect } from '../utils/mediaQuery';
+
+// 在组件中检测断点
+useEffect(() => {
+  const cleanup = createMediaQueryEffect('mobile', (isMobile) => {
+    setIsMobile(isMobile);
+  });
+  return cleanup;
+}, []);
+```
+
+**响应式行为：**
+| 组件 | < 768px (mobile) | < 960px (tablet) | ≥ 960px (desktop) |
+|------|------------------|------------------|-------------------|
+| Tooltip | 底部 Sheet | 底部 Sheet | 悬浮提示 |
+| StatusTable | 卡片列表 | 卡片列表 | 完整表格 |
+| HeatmapBlock | 点击触发，禁用悬停 | 点击触发 | 悬停显示 |
+| 热力图数据 | 聚合显示 | 聚合显示 | 完整显示 |
 
 ### 数据流
 

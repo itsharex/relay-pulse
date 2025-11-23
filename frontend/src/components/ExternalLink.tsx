@@ -31,21 +31,28 @@ export function ExternalLink({ href, children, className = '', trackLabel }: Ext
     });
   };
 
+  // 生成无障碍标签
+  const ariaLabel = typeof children === 'string'
+    ? `访问 ${children}（在新窗口打开）`
+    : '外部链接（在新窗口打开）';
+
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-1 hover:underline ${className}`}
+      className={`inline-flex items-center gap-1 hover:underline active:underline min-h-[44px] py-1 -my-1 ${className}`}
       onClick={handleClick}
+      aria-label={ariaLabel}
     >
       {children}
-      <ExternalLinkIcon size={12} className="flex-shrink-0" />
+      <ExternalLinkIcon size={12} className="flex-shrink-0" aria-hidden="true" />
       {isHttp && (
-        <span title="非加密 HTTP 链接" className="inline-flex">
+        <span title="非加密 HTTP 链接" className="inline-flex" aria-label="警告：非加密链接">
           <AlertTriangle
             size={12}
             className="text-yellow-500 flex-shrink-0"
+            aria-hidden="true"
           />
         </span>
       )}

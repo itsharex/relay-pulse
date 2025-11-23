@@ -99,7 +99,7 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500 selection:text-white overflow-x-hidden">
       {/* 全局 Tooltip */}
-      <Tooltip tooltip={tooltip} />
+      <Tooltip tooltip={tooltip} onClose={handleBlockLeave} />
 
       {/* 背景装饰 */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">

@@ -1,9 +1,12 @@
-import { ArrowUpDown, ArrowUp, ArrowDown, Zap, Shield } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Zap, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
 import { ExternalLink } from './ExternalLink';
 import { STATUS, TIME_RANGES } from '../constants';
 import { availabilityToColor } from '../utils/color';
+import { aggregateHeatmap } from '../utils/heatmapAggregator';
+import { createMediaQueryEffect } from '../utils/mediaQuery';
 import type { ProcessedMonitorData, SortConfig } from '../types';
 
 type HistoryPoint = ProcessedMonitorData['history'][number];
@@ -17,6 +20,200 @@ interface StatusTableProps {
   onBlockLeave: () => void;
 }
 
+// 移动端卡片列表项组件
+function MobileListItem({
+  item,
+  onBlockHover,
+  onBlockLeave,
+}: {
+  item: ProcessedMonitorData;
+  onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
+  onBlockLeave: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  // 聚合热力图数据
+  const aggregatedHistory = useMemo(
+    () => aggregateHeatmap(item.history, 30),
+    [item.history]
+  );
+
+  return (
+    <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-3">
+      {/* 主要信息行 */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* 服务图标 */}
+          <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700">
+            {item.serviceType === 'cc' ? (
+              <Zap className="text-purple-400" size={18} />
+            ) : (
+              <Shield className="text-blue-400" size={18} />
+            )}
+          </div>
+
+          {/* 服务商名称 */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-slate-100 truncate">
+                <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
+              </span>
+              <span
+                className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                  item.category === 'commercial'
+                    ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+                    : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
+                }`}
+              >
+                {item.category === 'commercial' ? '推' : '益'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${
+                  item.serviceType === 'cc'
+                    ? 'border-purple-500/30 text-purple-300 bg-purple-500/10'
+                    : 'border-blue-500/30 text-blue-300 bg-blue-500/10'
+                }`}
+              >
+                {item.serviceType.toUpperCase()}
+              </span>
+              {item.channel && (
+                <span className="text-slate-500 truncate">{item.channel}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 状态和可用率 */}
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-800 border border-slate-700">
+            <StatusDot status={item.currentStatus} size="sm" />
+            <span className={`text-xs font-bold ${STATUS[item.currentStatus].text}`}>
+              {STATUS[item.currentStatus].label}
+            </span>
+          </div>
+          <span
+            className="text-sm font-mono font-bold"
+            style={{ color: availabilityToColor(item.uptime) }}
+          >
+            {item.uptime}%
+          </span>
+        </div>
+      </div>
+
+      {/* 热力图 */}
+      <div className="flex gap-[2px] h-6 w-full">
+        {aggregatedHistory.map((point, idx) => (
+          <HeatmapBlock
+            key={idx}
+            point={point}
+            width={`${100 / aggregatedHistory.length}%`}
+            height="h-full"
+            onHover={onBlockHover}
+            onLeave={onBlockLeave}
+          />
+        ))}
+      </div>
+
+      {/* 展开/收起按钮 */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-center gap-1 py-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+      >
+        {expanded ? (
+          <>
+            <ChevronUp size={14} />
+            收起详情
+          </>
+        ) : (
+          <>
+            <ChevronDown size={14} />
+            查看详情
+          </>
+        )}
+      </button>
+
+      {/* 展开的详细信息 */}
+      {expanded && (
+        <div className="pt-3 border-t border-slate-800 space-y-2 text-xs">
+          <div className="flex justify-between">
+            <span className="text-slate-500">赞助者</span>
+            <span className="text-slate-300">
+              <ExternalLink href={item.sponsorUrl}>{item.sponsor}</ExternalLink>
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">通道</span>
+            <span className="text-slate-300">{item.channel || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">最后检测</span>
+            <span className="text-slate-300 font-mono">
+              {item.lastCheckTimestamp
+                ? new Date(item.lastCheckTimestamp * 1000).toLocaleString('zh-CN', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '-'}
+            </span>
+          </div>
+          {item.lastCheckLatency !== undefined && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">延迟</span>
+              <span className="text-slate-300 font-mono">{item.lastCheckLatency}ms</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 移动端排序菜单
+function MobileSortMenu({
+  sortConfig,
+  onSort,
+}: {
+  sortConfig: SortConfig;
+  onSort: (key: string) => void;
+}) {
+  const sortOptions = [
+    { key: 'providerName', label: '服务商' },
+    { key: 'uptime', label: '可用率' },
+    { key: 'currentStatus', label: '当前状态' },
+    { key: 'serviceType', label: '服务类型' },
+  ];
+
+  return (
+    <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+      <span className="text-xs text-slate-500 flex-shrink-0">排序:</span>
+      {sortOptions.map((option) => (
+        <button
+          key={option.key}
+          onClick={() => onSort(option.key)}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${
+            sortConfig.key === option.key
+              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200'
+          }`}
+        >
+          {option.label}
+          {sortConfig.key === option.key && (
+            sortConfig.direction === 'asc' ? (
+              <ArrowUp size={12} />
+            ) : (
+              <ArrowDown size={12} />
+            )
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function StatusTable({
   data,
   sortConfig,
@@ -25,6 +222,14 @@ export function StatusTable({
   onBlockHover,
   onBlockLeave,
 }: StatusTableProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 检测是否为平板/移动端（< 960px，兼容 Safari ≤13）
+  useEffect(() => {
+    const cleanup = createMediaQueryEffect('tablet', setIsMobile);
+    return cleanup;
+  }, []);
+
   const SortIcon = ({ columnKey }: { columnKey: string }) => {
     if (sortConfig.key !== columnKey)
       return <ArrowUpDown size={14} className="opacity-30 ml-1" />;
@@ -37,6 +242,26 @@ export function StatusTable({
 
   const currentTimeRange = TIME_RANGES.find((r) => r.id === timeRange);
 
+  // 移动端：卡片列表视图
+  if (isMobile) {
+    return (
+      <div>
+        <MobileSortMenu sortConfig={sortConfig} onSort={onSort} />
+        <div className="space-y-3">
+          {data.map((item) => (
+            <MobileListItem
+              key={item.id}
+              item={item}
+              onBlockHover={onBlockHover}
+              onBlockLeave={onBlockLeave}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 桌面端：表格视图
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-800/50 shadow-xl">
       <table className="w-full text-left border-collapse bg-slate-900/40 backdrop-blur-sm">

@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import type { ProcessedMonitorData } from '../types';
 import { availabilityToStyle } from '../utils/color';
+import { createMediaQueryEffect } from '../utils/mediaQuery';
 
 // 直接使用 ProcessedMonitorData 中的 history 类型，确保字段完整性
 type HeatmapPoint = ProcessedMonitorData['history'][number];
@@ -19,12 +21,41 @@ export function HeatmapBlock({
   onHover,
   onLeave,
 }: HeatmapBlockProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 检测是否为移动端（< 768px）
+  useEffect(() => {
+    const cleanup = createMediaQueryEffect('mobile', setIsMobile);
+    return cleanup;
+  }, []);
+
+  // 处理触摸和点击事件（移动端）
+  const handleTouch = (e: React.TouchEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+    // 阻止事件冒泡，避免触发父元素的点击
+    e.stopPropagation();
+
+    // 模拟鼠标事件传递给 onHover
+    const mouseEvent = e as React.MouseEvent<HTMLDivElement>;
+    onHover(mouseEvent, point);
+  };
+
   return (
     <div
-      className={`${height} rounded-sm transition-all duration-200 hover:scale-110 hover:z-10 cursor-pointer opacity-80 hover:opacity-100`}
+      role="button"
+      tabIndex={0}
+      className={`${height} rounded-sm transition-all duration-200 hover:scale-110 active:scale-105 hover:z-10 cursor-pointer opacity-80 hover:opacity-100 active:opacity-100`}
       style={{ width, ...availabilityToStyle(point.availability) }}
-      onMouseEnter={(e) => onHover(e, point)}
-      onMouseLeave={onLeave}
+      // 鼠标事件（仅桌面端，移动端禁用避免闪烁）
+      onMouseEnter={isMobile ? undefined : (e) => onHover(e, point)}
+      onMouseLeave={isMobile ? undefined : onLeave}
+      // 触摸事件（移动端）
+      onTouchStart={handleTouch}
+      onClick={handleTouch}
+      // 键盘可访问性（仅桌面端）
+      onFocus={isMobile ? undefined : (e) => onHover(e as any, point)}
+      onBlur={isMobile ? undefined : onLeave}
+      // 无障碍标签
+      aria-label={`可用率 ${point.availability >= 0 ? point.availability.toFixed(1) + '%' : '无数据'}`}
     />
   );
 }

@@ -3,15 +3,28 @@ import type { StatusKey } from '../types';
 
 interface StatusDotProps {
   status: StatusKey;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
+  showLabel?: boolean;
 }
 
-export function StatusDot({ status, size = 'md' }: StatusDotProps) {
-  const sizeClass = size === 'sm' ? 'w-2 h-2' : 'w-3 h-3';
+export function StatusDot({ status, size = 'md', showLabel = false }: StatusDotProps) {
+  const sizeClasses = {
+    sm: 'w-2 h-2',
+    md: 'w-3 h-3',
+    lg: 'w-4 h-4',
+  };
+
+  const statusInfo = STATUS[status];
 
   return (
     <div
-      className={`${sizeClass} rounded-full ${STATUS[status].color} ${STATUS[status].glow} transition-all duration-500`}
-    />
+      className={`${sizeClasses[size]} rounded-full ${statusInfo.color} ${statusInfo.glow} transition-all duration-500`}
+      role="img"
+      aria-label={statusInfo.label}
+      title={showLabel ? undefined : statusInfo.label}
+    >
+      {/* 为屏幕阅读器提供状态描述 */}
+      <span className="sr-only">{statusInfo.label}</span>
+    </div>
   );
 }
