@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 讨论区
+    url: https://github.com/prehisle/relay-pulse/discussions
+    about: 一般性问题、使用疑问请前往讨论区
+  - name: 📖 使用文档
+    url: https://github.com/prehisle/relay-pulse/blob/main/README.md
+    about: 查看完整的安装和配置文档

@@ -1,0 +1,114 @@
+name: 🐛 问题反馈
+description: 报告监控系统的问题或错误
+title: "[问题反馈] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您的反馈！请尽可能详细地描述问题，这将帮助我们更快地定位和解决。
+
+  - type: dropdown
+    id: problem-type
+    attributes:
+      label: 问题类型
+      description: 请选择最符合的问题类型
+      options:
+        - 监控数据异常
+        - 页面显示错误
+        - 性能/响应速度问题
+        - 配置/部署问题
+        - 功能建议
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: related-service
+    attributes:
+      label: 相关服务商（如适用）
+      description: 如果问题与特定服务商相关，请填写服务商名称
+      placeholder: 例如：88code、DuckCoding 等，若无关请留空
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 严重程度
+      options:
+        - 🔴 严重 - 系统无法使用
+        - 🟡 中等 - 功能受影响但可用
+        - 🟢 轻微 - UI/体验问题
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 请详细描述遇到的问题
+      placeholder: |
+        请包含以下信息：
+        1. 具体操作步骤（如何触发该问题）
+        2. 预期行为（您期望看到什么）
+        3. 实际行为（实际发生了什么）
+        4. 错误信息（如果有的话）
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏
+      description: 如有可能，请提供截图或录屏（可直接粘贴图片到此处）
+
+  - type: dropdown
+    id: reproducible
+    attributes:
+      label: 是否可稳定复现？
+      options:
+        - 是，每次都出现
+        - 偶尔出现
+        - 仅出现一次
+        - 不确定
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: 部署环境
+      description: 您使用的部署方式
+      placeholder: 例如：Docker、本地编译、Linux、macOS
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: 浏览器/客户端
+      description: 如果是前端问题，请提供浏览器信息
+      placeholder: 例如：Chrome 120、Safari 17、Firefox 121
+
+  - type: input
+    id: version
+    attributes:
+      label: 系统版本
+      description: relay-pulse 的版本号（可在页面底部查看）
+      placeholder: 例如：v0.1.1
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: 如果有错误日志，请粘贴在此处
+      placeholder: |
+        可通过以下方式获取日志：
+        - Docker: docker logs relay-pulse
+        - 本地运行: 查看终端输出
+      render: shell
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 其他上下文信息
+      description: 其他任何可能有助于解决问题的信息

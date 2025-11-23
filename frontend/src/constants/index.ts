@@ -54,7 +54,18 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 export const USE_MOCK_DATA =
   (import.meta.env.VITE_USE_MOCK_DATA || '').toLowerCase() === 'true';
 
-// 反馈/推荐服务商链接
-export const FEEDBACK_URL =
-  import.meta.env.VITE_FEEDBACK_URL ||
-  'https://github.com/prehisle/relay-pulse/issues/new?template=submit-provider.md&labels=submission';
+// 反馈链接配置
+// 向后兼容：优先使用新的环境变量，回退到旧的 VITE_FEEDBACK_URL
+const legacyFeedbackUrl = import.meta.env.VITE_FEEDBACK_URL;
+export const FEEDBACK_URLS = {
+  // 推荐服务商
+  PROVIDER_SUGGESTION:
+    import.meta.env.VITE_FEEDBACK_PROVIDER_URL ||
+    legacyFeedbackUrl ||
+    'https://github.com/prehisle/relay-pulse/issues/new?template=1-provider-suggestion.yml',
+  // 问题反馈
+  BUG_REPORT:
+    import.meta.env.VITE_FEEDBACK_BUG_URL ||
+    legacyFeedbackUrl ||
+    'https://github.com/prehisle/relay-pulse/issues/new?template=2-bug-report.yml',
+} as const;

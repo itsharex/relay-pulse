@@ -1,0 +1,85 @@
+name: 🚀 推荐服务商
+description: 推荐新的 LLM 服务商接入监控
+title: "[推荐服务商] "
+labels: ["enhancement", "provider-suggestion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您推荐新的服务商！我们会评估并考虑将其加入监控列表。
+
+  - type: input
+    id: provider-name
+    attributes:
+      label: 服务商名称
+      description: 请提供服务商的正式名称
+      placeholder: 例如：DeepSeek、Moonshot AI
+    validations:
+      required: true
+
+  - type: input
+    id: provider-url
+    attributes:
+      label: 官方网站
+      description: 服务商的官方网站地址
+      placeholder: https://example.com
+    validations:
+      required: true
+
+  - type: input
+    id: api-doc
+    attributes:
+      label: API 文档地址
+      description: 开发者文档或 API 文档的链接（如果有）
+      placeholder: https://docs.example.com/api
+
+  - type: textarea
+    id: selling-points
+    attributes:
+      label: 推荐理由/特色功能
+      description: 请说明为什么推荐这个服务商，它有什么独特优势？
+      placeholder: |
+        例如：
+        - 价格优势：比同类服务便宜 30%
+        - 模型独特性：提供独家微调的中文模型
+        - 服务稳定性：99.9% SLA 保证
+        - 其他特色功能
+    validations:
+      required: true
+
+  - type: dropdown
+    id: service-type
+    attributes:
+      label: 服务类型
+      description: 该服务商主要提供哪种类型的 API？
+      multiple: true
+      options:
+        - Chat Completions (对话补全)
+        - Embeddings (向量化)
+        - Image Generation (图像生成)
+        - Speech/Audio (语音)
+        - 其他
+
+  - type: dropdown
+    id: willing-to-test
+    attributes:
+      label: 是否愿意提供测试账号协助接入？
+      description: 如果您能提供测试 API Key，将大大加速接入进程
+      options:
+        - 是，可以提供测试账号
+        - 否，仅推荐
+    validations:
+      required: true
+
+  - type: input
+    id: contact
+    attributes:
+      label: 联系方式（可选）
+      description: 如果需要后续沟通，请留下联系方式
+      placeholder: Email、Telegram、微信等
+
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: 其他信息
+      description: 其他任何想补充的信息

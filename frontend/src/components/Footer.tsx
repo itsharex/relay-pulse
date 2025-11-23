@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Activity, Shield, AlertTriangle, Github, Tag, ChevronDown, ChevronUp } from 'lucide-react';
+import { Activity, Shield, AlertTriangle, Github, Tag, ChevronDown, ChevronUp, Bug } from 'lucide-react';
 import { useVersionInfo } from '../hooks/useVersionInfo';
+import { FEEDBACK_URLS } from '../constants';
 
 const notices = [
   {
@@ -67,6 +68,16 @@ export function Footer() {
           >
             <Github size={14} />
             <span>GitHub</span>
+          </a>
+          <span className="hidden sm:inline text-slate-600">·</span>
+          <a
+            href={FEEDBACK_URLS.BUG_REPORT}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-rose-300 hover:border-rose-500/30 transition min-h-[36px]"
+          >
+            <Bug size={14} />
+            <span>问题反馈</span>
           </a>
           <span className="hidden sm:inline text-slate-600">·</span>
           <span className="text-slate-500 text-[11px] sm:text-xs">开源项目，欢迎贡献</span>
