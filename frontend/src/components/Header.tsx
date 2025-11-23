@@ -24,7 +24,7 @@ export function Header({ stats }: HeaderProps) {
         </div>
         <p className="text-slate-400 text-xs sm:text-sm flex items-center gap-2">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          实时监控服务可用性矩阵
+          实时监控API中转服务可用性矩阵
         </p>
       </div>
 
