@@ -4,23 +4,32 @@
 
 - **域名**: `relaypulse.top`
 - **仓库**: https://github.com/prehisle/relay-pulse.git
-- **后端**: Go 服务监听 8080（`cmd/server/main.go`），提供 `/api/status`、`/health`
-- **前端**: React + Vite 构建，静态托管
+- **服务**: Go 服务监听 8080（`cmd/server/main.go`），通过 embed 提供前端静态资源 + API（`/api/status`、`/health`）
+- **前端**: React + Vite 构建后嵌入到 Go 二进制文件中
 - **数据层**: 默认 SQLite，可切换 PostgreSQL
+- **CDN**: Cloudflare 提供 HTTPS、缓存、DDoS 防护
 
 ## 部署架构
 
 ```
 [客户端]
     ↓ HTTPS
-[Nginx/Caddy (relaypulse.top:443)]
-    ↓ 静态文件
-    /var/www/relaypulse.top/dist/
-    ↓ API 反向代理 (/api/*, /health)
-[后端服务 (127.0.0.1:8080)]
+[Cloudflare CDN/WAF]
+    ↓ HTTP :80
+[Go 服务 :8080]
+    ├─ 静态资源 (embed FS)
+    ├─ API 接口 (/api/*)
+    ├─ 健康检查 (/health)
+    ├─ Gzip 压缩
+    └─ 安全头 (HSTS, X-Frame-Options 等)
     ↓
 [SQLite/PostgreSQL]
 ```
+
+**说明**：
+- Cloudflare 终止 HTTPS，转发 HTTP 请求到 Go 服务
+- Go 服务直接提供所有静态资源和 API，无需额外的反向代理
+- 防火墙限制只允许 Cloudflare IP 访问 80 端口
 
 ## 前置准备
 
@@ -168,105 +177,118 @@ sudo systemctl status relay-pulse.service
 sudo journalctl -u relay-pulse.service -f
 ```
 
-## 前端部署
+## Cloudflare 配置
 
-### 1. 构建前端
+### 1. DNS 设置
 
-```bash
-# 确保 frontend/.env.production 中已设置:
-# VITE_API_BASE_URL=https://relaypulse.top
-# VITE_USE_MOCK_DATA=false
+登录 Cloudflare 控制台，为域名 `relaypulse.top` 添加 A 记录：
 
-cd frontend
-npm ci
-npm run build
+```
+类型: A
+名称: @ (或 relaypulse)
+IPv4地址: <服务器公网IP>
+代理状态: 已代理 (橙色云朵)
+TTL: 自动
 ```
 
-### 2. 上传到服务器
+**重要**：必须开启代理（橙色云朵），这样流量才会经过 Cloudflare 的 CDN 和 WAF。
+
+### 2. SSL/TLS 设置
+
+在 Cloudflare 控制台 → SSL/TLS → 概述：
+
+- **加密模式**：选择 **"灵活"（Flexible）**
+  - Cloudflare ↔ 客户端：HTTPS（由 Cloudflare 提供证书）
+  - Cloudflare ↔ 源服务器：HTTP
+  - 适用于当前架构（Go 服务提供 HTTP）
+
+- **（可选）未来升级到"完全"或"完全（严格）"**：
+  - 需要为 Go 服务配置 TLS 证书（Let's Encrypt）
+  - 更安全，但需要额外配置
+
+### 3. 缓存配置
+
+在 Cloudflare 控制台 → 缓存配置 → 配置：
+
+**页面规则（Page Rules）**：
+
+1. **缓存静态资源**：
+   ```
+   URL: relaypulse.top/assets/*
+   设置: 缓存级别 = 缓存所有内容, 浏览器缓存TTL = 1年
+   ```
+
+2. **绕过API缓存**：
+   ```
+   URL: relaypulse.top/api/*
+   设置: 缓存级别 = 绕过
+   ```
+
+3. **绕过健康检查缓存**：
+   ```
+   URL: relaypulse.top/health
+   设置: 缓存级别 = 绕过
+   ```
+
+### 4. 防火墙设置（服务器端）
+
+**关键**：限制服务器只接受来自 Cloudflare 的流量，阻止直接访问：
 
 ```bash
-# 方式 1: rsync
-rsync -av dist/ user@relaypulse.top:/var/www/relaypulse.top/dist/
+# Ubuntu/Debian (UFW)
+sudo ufw default deny incoming
+sudo ufw allow ssh
 
-# 方式 2: scp
-scp -r dist/* user@relaypulse.top:/var/www/relaypulse.top/dist/
+# 允许 Cloudflare IPv4 地址段
+for ip in $(curl -s https://www.cloudflare.com/ips-v4); do
+    sudo ufw allow from $ip to any port 80 proto tcp
+done
+
+# 允许 Cloudflare IPv6 地址段（可选）
+for ip in $(curl -s https://www.cloudflare.com/ips-v6); do
+    sudo ufw allow from $ip to any port 80 proto tcp
+done
+
+sudo ufw enable
+sudo ufw status
 ```
 
-### 3. 配置 Nginx
+**CentOS/RHEL (firewalld)**：
+```bash
+# 创建 Cloudflare IP 集合
+sudo firewall-cmd --permanent --new-ipset=cloudflare --type=hash:net
+for ip in $(curl -s https://www.cloudflare.com/ips-v4); do
+    sudo firewall-cmd --permanent --ipset=cloudflare --add-entry=$ip
+done
 
-创建 `/etc/nginx/sites-available/relaypulse.top`:
-
-```nginx
-server {
-    listen 80;
-    listen 443 ssl http2;
-    server_name relaypulse.top;
-
-    # SSL 证书配置（使用 certbot）
-    ssl_certificate /etc/letsencrypt/live/relaypulse.top/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/relaypulse.top/privkey.pem;
-
-    # 静态文件
-    root /var/www/relaypulse.top/dist;
-    index index.html;
-
-    # Gzip 压缩
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-
-    # 静态资源缓存
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # API 反向代理
-    location /api/ {
-        proxy_pass http://127.0.0.1:8080/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # 禁用缓存
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
-    }
-
-    # 健康检查
-    location /health {
-        proxy_pass http://127.0.0.1:8080/health;
-        access_log off;
-    }
-
-    # SPA 路由支持
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # HSTS
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-}
-
-# HTTP 重定向到 HTTPS
-server {
-    listen 80;
-    server_name relaypulse.top;
-    return 301 https://$server_name$request_uri;
-}
+sudo firewall-cmd --permanent --zone=public --add-rich-rule='rule family="ipv4" source ipset="cloudflare" port port="80" protocol="tcp" accept'
+sudo firewall-cmd --reload
 ```
 
-### 4. 启用站点并重载 Nginx
+### 5. 安全与性能优化（可选）
+
+在 Cloudflare 控制台配置：
+
+- **安全** → **WAF（Web应用防火墙）**：启用托管规则
+- **安全** → **速率限制**：限制 API 请求频率（如 `/api/*` 每分钟100次）
+- **速度** → **自动压缩**：已由 Go 服务提供 Gzip，可禁用避免重复压缩
+- **速度** → **Rocket Loader**：禁用（避免与 React SPA 冲突）
+- **速度** → **自动缩小**：启用 JS/CSS/HTML 缩小
+
+### 6. 验证配置
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/relaypulse.top /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
+# 1. 测试 Cloudflare DNS 解析
+dig relaypulse.top
 
-### 5. 申请 SSL 证书
+# 2. 测试 HTTPS 访问（应返回200）
+curl -I https://relaypulse.top
 
-```bash
-sudo certbot --nginx -d relaypulse.top
+# 3. 验证流量经过 Cloudflare（检查响应头）
+curl -I https://relaypulse.top | grep -i "cf-ray"
+
+# 4. 测试直接访问源服务器（应被防火墙拒绝）
+curl -I http://<服务器IP>:80
 ```
 
 ## 环境变量说明
@@ -321,9 +343,11 @@ r.Use(cors.New(config))
 
 ### 3. HTTPS/TLS
 
-- ✅ 使用 Let's Encrypt 自动续期证书
-- ✅ 启用 HSTS 头
-- ✅ 强制 HTTP 重定向到 HTTPS
+- ✅ TLS 由 Cloudflare 终止，自动提供和续期证书
+- ✅ Go 服务已启用 HSTS 头（由安全头中间件提供）
+- ✅ 防火墙限制只允许 Cloudflare IP 访问源服务器
+- ⚠️ 当前使用 Cloudflare "灵活"模式（Cloudflare↔源服务器为 HTTP）
+- 🔒 （可选）升级到"完全"模式：需要为 Go 服务配置 TLS 证书
 
 ### 4. PostgreSQL 安全
 
@@ -476,22 +500,21 @@ psql -h localhost -U monitor -d monitor
 
 ## 性能优化
 
-### 1. 启用 HTTP/2
+### 1. HTTP/2 和 HTTP/3
 
-Nginx 配置已包含 `http2` 参数。
+- ✅ Cloudflare 自动启用 HTTP/2 和 HTTP/3（QUIC）
+- ✅ 无需额外配置
 
-### 2. 开启 Gzip 压缩
+### 2. Gzip 压缩
 
-Nginx 配置已包含 gzip 设置。
+- ✅ Go 服务已通过中间件启用 Gzip 压缩（`internal/api/server.go`）
+- ⚠️ Cloudflare 的"自动压缩"可能与 Go 的 Gzip 冲突，建议在 Cloudflare 控制台关闭"自动压缩"
 
-### 3. 静态资源 CDN
+### 3. CDN 和缓存
 
-如需使用 CDN，修改前端构建配置：
-
-```bash
-# .env.production
-VITE_CDN_URL=https://cdn.example.com
-```
+- ✅ Cloudflare 本身就是全球 CDN
+- ✅ 通过页面规则配置静态资源缓存（参见"Cloudflare 配置"章节）
+- ✅ API 请求不缓存（已配置绕过）
 
 ### 4. 数据库优化
 

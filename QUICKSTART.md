@@ -314,25 +314,18 @@ docker rmi ghcr.io/prehisle/relay-pulse:latest
 
 ## 生产部署建议
 
-### 1. 使用 HTTPS（Nginx 反向代理）
+### 1. 使用 HTTPS（Cloudflare CDN）
 
-虽然前后端已集成，但生产环境建议用 Nginx 提供 HTTPS：
+生产环境推荐使用 Cloudflare 提供 HTTPS、CDN 和 DDoS 防护：
 
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name monitor.example.com;
+**步骤**：
+1. 在 Cloudflare 添加 A 记录指向服务器 IP，开启代理（橙色云朵）
+2. SSL/TLS 模式设置为 "灵活"（Flexible）
+3. 配置页面规则缓存静态资源（`/assets/*`）
+4. 配置服务器防火墙只允许 Cloudflare IP 访问 80 端口
+5. 修改 `docker-compose.yaml` 端口映射为 `80:8080`
 
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
+详细配置请参考 `docs/deployment.md` 中的"Cloudflare 配置"章节。
 
 ### 2. 资源限制
 

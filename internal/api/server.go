@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 
 	"monitor/internal/buildinfo"
@@ -57,6 +58,24 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 	}
 	router.Use(cors.New(corsConfig))
 
+	// Gzip 压缩中间件
+	router.Use(gzip.Gzip(gzip.DefaultCompression))
+
+	// 安全头中间件
+	router.Use(func(c *gin.Context) {
+		// HSTS（强制 HTTPS，有效期 1 年）- Cloudflare 提供 HTTPS
+		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		// 防止点击劫持
+		c.Header("X-Frame-Options", "SAMEORIGIN")
+		// 防止 MIME 类型嗅探
+		c.Header("X-Content-Type-Options", "nosniff")
+		// XSS 保护
+		c.Header("X-XSS-Protection", "1; mode=block")
+		// Referrer Policy
+		c.Header("Referrer-Policy", "no-referrer-when-downgrade")
+		c.Next()
+	})
+
 	// 创建处理器
 	handler := NewHandler(store, cfg)
 
@@ -74,10 +93,12 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 		})
 	})
 
-	// 健康检查
-	router.GET("/health", func(c *gin.Context) {
+	// 健康检查（支持 GET 和 HEAD）
+	healthHandler := func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	}
+	router.GET("/health", healthHandler)
+	router.HEAD("/health", healthHandler)
 
 	// 静态文件服务（前端）
 	setupStaticFiles(router)

@@ -329,7 +329,7 @@ body: |
 
 - **域名**: `relaypulse.top`
 - **仓库**: https://github.com/prehisle/relay-pulse.git
-- **架构**: Nginx（静态文件 + API 反向代理）→ Go 后端（监听 8080）→ SQLite/PostgreSQL
+- **架构**: Cloudflare CDN/WAF → Go 服务（监听 8080，embed 静态资源 + API）→ SQLite/PostgreSQL
 
 > 📖 **完整部署指南**：请查看 [docs/deployment.md](docs/deployment.md) 获取详细的生产环境部署步骤、安全加固、监控维护等内容。
 
@@ -481,40 +481,11 @@ npm run build
 rsync -av dist/ user@relaypulse.top:/var/www/relaypulse.top/dist/
 ```
 
-**Nginx 配置示例**（`/etc/nginx/sites-available/relaypulse.top`）：
+**Cloudflare 配置说明**：
 
-```nginx
-server {
-    listen 80;
-    listen 443 ssl http2;
-    server_name relaypulse.top;
+Go 服务通过 embed 直接提供所有静态资源和 API，无需单独的反向代理。生产环境使用 Cloudflare 提供 HTTPS、CDN 和安全防护。
 
-    # SSL 证书
-    ssl_certificate /etc/letsencrypt/live/relaypulse.top/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/relaypulse.top/privkey.pem;
-
-    # 静态文件
-    root /var/www/relaypulse.top/dist;
-    index index.html;
-
-    # API 反向代理
-    location /api/ {
-        proxy_pass http://127.0.0.1:8080/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 健康检查
-    location /health {
-        proxy_pass http://127.0.0.1:8080/health;
-    }
-
-    # SPA 路由支持
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
+详细配置步骤请查看 [docs/deployment.md](docs/deployment.md) 中的"Cloudflare 配置"章节。
 
 ### 安全提示
 
