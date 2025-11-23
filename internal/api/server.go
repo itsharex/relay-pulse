@@ -189,9 +189,20 @@ func setupStaticFiles(router *gin.Engine) {
 		}
 
 		// 尝试从 embed FS 读取静态文件（favicon.svg、manifest.json 等）
-		filePath := strings.TrimPrefix(path, "/")
-		if filePath == "" {
+		// 移除所有前导斜杠（Nginx 代理可能产生 //favicon.svg）
+		filePath := strings.TrimLeft(path, "/")
+		filePath = filepath.Clean(filePath)
+
+		// 空路径或 "." 返回 index.html
+		if filePath == "." || filePath == "" {
 			filePath = "index.html"
+		}
+
+		// 防止路径穿越攻击
+		if strings.Contains(filePath, "..") {
+			log.Printf("[API] ⚠️  路径穿越尝试: %s", path)
+			c.Status(http.StatusBadRequest)
+			return
 		}
 
 		// 尝试打开文件
@@ -205,9 +216,11 @@ func setupStaticFiles(router *gin.Engine) {
 				mimeType = "application/octet-stream"
 			}
 
-			// 返回文件内容
+			log.Printf("[API] ✅ 静态文件命中: %s (MIME: %s)", filePath, mimeType)
 			c.DataFromReader(http.StatusOK, info.Size(), mimeType, file, nil)
 			return
+		} else {
+			log.Printf("[API] ⚠️  embed FS miss: %s (error: %v)", filePath, err)
 		}
 
 		// 文件不存在，回退到 index.html（SPA 路由）
