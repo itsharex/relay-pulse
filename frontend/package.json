@@ -1,7 +1,16 @@
 {
-  "name": "frontend",
+  "name": "relay-pulse-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.1",
+  "description": "Relay Pulse - LLM 服务可用性监控前端",
+  "homepage": "https://relaypulse.top",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/prehisle/relay-pulse.git"
+  },
+  "bugs": {
+    "url": "https://github.com/prehisle/relay-pulse/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

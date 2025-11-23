@@ -2,6 +2,8 @@
 
 > **Audience**: 用户 | **Last reviewed**: 2025-11-21
 
+> 💡 **在线演示**: [https://relaypulse.top](https://relaypulse.top) - 体验完整功能后再部署
+
 本文档介绍如何在不同环境下安装和部署 Relay Pulse。
 
 ## 前置要求

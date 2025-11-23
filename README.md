@@ -4,7 +4,9 @@
 
 企业级 LLM 服务可用性监控系统，实时追踪服务状态并提供可视化仪表板。
 
-![Status Dashboard](https://img.shields.io/badge/status-production-green) ![License](https://img.shields.io/badge/license-MIT-blue)
+[![在线演示](https://img.shields.io/badge/🌐_在线演示-relaypulse.top-00d8ff?style=for-the-badge)](https://relaypulse.top)
+
+![Status Dashboard](https://img.shields.io/badge/status-production-green) ![License](https://img.shields.io/badge/license-MIT-blue) [![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker)](https://ghcr.io/prehisle/relay-pulse)
 
 ## ✨ 核心特性
 

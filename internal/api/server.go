@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"mime"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -186,7 +188,29 @@ func setupStaticFiles(router *gin.Engine) {
 			return
 		}
 
-		// 其他路径返回前端 index.html（SPA 路由）
+		// 尝试从 embed FS 读取静态文件（favicon.svg、manifest.json 等）
+		filePath := strings.TrimPrefix(path, "/")
+		if filePath == "" {
+			filePath = "index.html"
+		}
+
+		// 尝试打开文件
+		if file, err := distFS.Open(filePath); err == nil {
+			defer file.Close()
+			info, _ := file.Stat()
+
+			// 根据文件扩展名确定 MIME 类型
+			mimeType := mime.TypeByExtension(filepath.Ext(filePath))
+			if mimeType == "" {
+				mimeType = "application/octet-stream"
+			}
+
+			// 返回文件内容
+			c.DataFromReader(http.StatusOK, info.Size(), mimeType, file, nil)
+			return
+		}
+
+		// 文件不存在，回退到 index.html（SPA 路由）
 		data, err := fs.ReadFile(distFS, "index.html")
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Failed to load frontend")
