@@ -110,8 +110,29 @@ func (s *Scheduler) runChecks(ctx context.Context) {
 	log.Printf("[Scheduler] 开始巡检 %d 个监控项", len(cfg.Monitors))
 
 	var wg sync.WaitGroup
+
+	// 并发控制：根据配置决定并发策略
+	monitorCount := len(cfg.Monitors)
+	maxConcurrency := cfg.MaxConcurrency
+
+	// MaxConcurrency 语义：
+	// - -1: 无限制，自动扩容到监控项数量
+	// - >0: 硬上限，严格限制并发数
+	if maxConcurrency == -1 {
+		// 无限制模式：每个监控项一个 goroutine
+		maxConcurrency = monitorCount
+		log.Printf("[Scheduler] 并发模式: 无限制 (并发数=%d)", maxConcurrency)
+	} else if monitorCount > maxConcurrency {
+		// 硬上限模式：监控数超过上限时会排队
+		log.Printf("[Scheduler] 并发模式: 硬上限 (上限=%d, 监控项=%d, 将分批执行)",
+			maxConcurrency, monitorCount)
+	} else {
+		log.Printf("[Scheduler] 并发模式: 正常 (并发数=%d, 监控项=%d)",
+			maxConcurrency, monitorCount)
+	}
+
 	// 限制并发数
-	sem := make(chan struct{}, 10)
+	sem := make(chan struct{}, maxConcurrency)
 
 	for _, task := range cfg.Monitors {
 		wg.Add(1)

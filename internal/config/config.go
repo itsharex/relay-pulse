@@ -80,6 +80,12 @@ type AppConfig struct {
 	// 绿色=1.0, 黄色=degraded_weight, 红色=0.0
 	DegradedWeight float64 `yaml:"degraded_weight" json:"degraded_weight"`
 
+	// 并发探测的最大 goroutine 数（默认 10）
+	// - 不配置或 0: 使用默认值 10
+	// - -1: 无限制，自动扩容到监控项数量
+	// - >0: 硬上限，超过时监控项会排队等待执行
+	MaxConcurrency int `yaml:"max_concurrency" json:"max_concurrency"`
+
 	// 存储配置
 	Storage StorageConfig `yaml:"storage" json:"storage"`
 
@@ -189,6 +195,17 @@ func (c *AppConfig) Normalize() error {
 	}
 	if c.DegradedWeight < 0 || c.DegradedWeight > 1 {
 		return fmt.Errorf("degraded_weight 必须在 0 到 1 之间（0 表示使用默认值 0.7），当前值: %.2f", c.DegradedWeight)
+	}
+
+	// 最大并发数（默认 10）
+	// - 未配置或 0：使用默认值 10
+	// - -1：无限制（自动扩容到监控项数量）
+	// - >0：作为硬上限，超过时排队执行
+	if c.MaxConcurrency == 0 {
+		c.MaxConcurrency = 10
+	}
+	if c.MaxConcurrency < -1 {
+		return fmt.Errorf("max_concurrency 无效值 %d，有效值：-1(无限制)、0(默认10)、>0(硬上限)", c.MaxConcurrency)
 	}
 
 	// 存储配置默认值
@@ -352,6 +369,7 @@ func (c *AppConfig) Clone() *AppConfig {
 		SlowLatency:         c.SlowLatency,
 		SlowLatencyDuration: c.SlowLatencyDuration,
 		DegradedWeight:      c.DegradedWeight,
+		MaxConcurrency:      c.MaxConcurrency,
 		Storage:             c.Storage,
 		Monitors:            make([]ServiceConfig, len(c.Monitors)),
 	}
