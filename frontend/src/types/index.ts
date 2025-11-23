@@ -136,3 +136,9 @@ export interface TooltipState {
 
 // 视图模式
 export type ViewMode = 'table' | 'grid';
+
+// 服务商选项（用于筛选器）
+export interface ProviderOption {
+  value: string;  // 规范化的键（小写），用于筛选
+  label: string;  // 显示标签（保留原始大小写）
+}

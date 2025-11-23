@@ -5,6 +5,7 @@ import type {
   SortConfig,
   StatusKey,
   StatusCounts,
+  ProviderOption,
 } from '../types';
 import { API_BASE_URL, STATUS, USE_MOCK_DATA } from '../constants';
 import { fetchMockMonitorData } from '../utils/mockMonitor';
@@ -20,6 +21,18 @@ function validateUrl(url: string | undefined): string | null {
     console.warn(`Invalid URL: ${url}`);
     return null;
   }
+}
+
+// Provider 名称标准化（用于筛选和去重）
+function canonicalize(value?: string): string {
+  return value?.trim().toLowerCase() ?? '';
+}
+
+// Provider 显示标签格式化（保留原始大小写，首字母大写）
+function formatProviderLabel(value?: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return '未命名服务商';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
 // 导入 STATUS_MAP
@@ -131,10 +144,14 @@ export function useMonitorData({
                 ).toFixed(2))
               : 0;
 
+            // 标准化 provider 名称
+            const providerKey = canonicalize(item.provider);
+            const providerLabel = formatProviderLabel(item.provider);
+
             return {
-              id: `${item.provider}-${item.service}-${item.channel || 'default'}`,
-              providerId: item.provider,
-              providerName: item.provider,
+              id: `${providerKey || item.provider}-${item.service}-${item.channel || 'default'}`,
+              providerId: providerKey || item.provider,  // 规范化的 ID（小写）
+              providerName: providerLabel,  // 格式化的显示名称
               providerUrl: validateUrl(item.provider_url),
               serviceType: item.service,
               category: item.category,
@@ -192,14 +209,20 @@ export function useMonitorData({
   }, [rawData]);
 
   // 提取所有服务商列表（去重并排序）
-  const providers = useMemo(() => {
-    const set = new Set<string>();
+  // 返回 ProviderOption[] 格式，支持 label/value 分离
+  const providers = useMemo<ProviderOption[]>(() => {
+    const map = new Map<string, string>();  // value -> label
     rawData.forEach((item) => {
       if (item.providerId) {
-        set.add(item.providerId);
+        // 如果同一个 providerId 有多个 providerName，保留第一个
+        if (!map.has(item.providerId)) {
+          map.set(item.providerId, item.providerName);
+        }
       }
     });
-    return Array.from(set).sort();
+    return Array.from(map.entries())
+      .sort((a, b) => a[1].localeCompare(b[1], 'zh-CN'))  // 按 label 排序
+      .map(([value, label]) => ({ value, label }));
   }, [rawData]);
 
   // 数据过滤和排序
