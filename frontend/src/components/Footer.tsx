@@ -16,8 +16,8 @@ const notices = [
   },
   {
     icon: AlertTriangle,
-    title: '范围说明',
-    text: '仅监测 API 连通性，不对具体内容负责',
+    title: '监测范围',
+    text: '连通性 + 延迟 + 内容校验，数据仅供参考',
   },
 ];
 
