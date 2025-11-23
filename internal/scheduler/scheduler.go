@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ type Scheduler struct {
 	ticker   *time.Ticker
 	running  bool
 	mu       sync.Mutex
+	rnd      *rand.Rand // 用于错峰调度的随机数生成器
 
 	// 配置引用（支持热更新）
 	cfg   *config.AppConfig
@@ -36,6 +38,7 @@ func NewScheduler(store storage.Storage, interval time.Duration) *Scheduler {
 	return &Scheduler{
 		prober:   monitor.NewProber(store),
 		interval: interval,
+		rnd:      rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -56,8 +59,8 @@ func (s *Scheduler) Start(ctx context.Context, cfg *config.AppConfig) {
 	s.cfgMu.Unlock()
 	s.mu.Unlock()
 
-	// 立即执行一次
-	go s.runChecks(ctx)
+	// 立即执行一次（不错峰，确保启动时快速得出结论）
+	go s.runChecks(ctx, false)
 
 	// 定时执行
 	go func() {
@@ -72,7 +75,7 @@ func (s *Scheduler) Start(ctx context.Context, cfg *config.AppConfig) {
 				return
 
 			case <-s.ticker.C:
-				s.runChecks(ctx)
+				s.runChecks(ctx, true) // 周期性巡检启用错峰
 			}
 		}
 	}()
@@ -81,7 +84,8 @@ func (s *Scheduler) Start(ctx context.Context, cfg *config.AppConfig) {
 }
 
 // runChecks 执行所有检查（防重复）
-func (s *Scheduler) runChecks(ctx context.Context) {
+// allowStagger 为 true 时，会在当前巡检周期内为不同监控项注入错峰延迟
+func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool) {
 	// 防止重复执行
 	s.checkMu.Lock()
 	if s.checkInProgress {
@@ -134,10 +138,32 @@ func (s *Scheduler) runChecks(ctx context.Context) {
 	// 限制并发数
 	sem := make(chan struct{}, maxConcurrency)
 
-	for _, task := range cfg.Monitors {
+	// 错峰策略：在周期内均匀分散探测
+	useStagger := allowStagger && cfg.ShouldStaggerProbes() && monitorCount > 1 && s.interval > 0
+	var baseDelay time.Duration
+	var jitterRange time.Duration
+	if useStagger {
+		baseDelay = s.interval / time.Duration(monitorCount)
+		if baseDelay <= 0 {
+			useStagger = false
+		} else {
+			jitterRange = baseDelay / 5 // ±20% 抖动
+			log.Printf("[Scheduler] 探测将按 %v 间隔错峰，抖动±%v", baseDelay, jitterRange)
+		}
+	}
+
+	for idx, task := range cfg.Monitors {
 		wg.Add(1)
-		go func(t config.ServiceConfig) {
+		go func(t config.ServiceConfig, index int) {
 			defer wg.Done()
+
+			// 错峰延迟（在获取信号量之前）
+			if useStagger {
+				delay := s.computeStaggerDelay(baseDelay, jitterRange, index)
+				if delay > 0 && !sleepWithContext(ctx, delay) {
+					return // context 取消
+				}
+			}
 
 			// 获取信号量
 			select {
@@ -155,7 +181,7 @@ func (s *Scheduler) runChecks(ctx context.Context) {
 				log.Printf("[Scheduler] 保存结果失败 %s-%s-%s: %v",
 					t.Provider, t.Service, t.Channel, err)
 			}
-		}(task)
+		}(task, idx)
 	}
 
 	wg.Wait()
@@ -192,7 +218,7 @@ func (s *Scheduler) TriggerNow() {
 	s.mu.Unlock()
 
 	if running && ctx != nil {
-		go s.runChecks(ctx)
+		go s.runChecks(ctx, false) // 手动触发不错峰
 		log.Printf("[Scheduler] 已触发即时巡检")
 	}
 }
@@ -208,4 +234,49 @@ func (s *Scheduler) Stop() {
 	}
 
 	s.prober.Close()
+}
+
+// computeStaggerDelay 计算错峰延迟时间
+// 基准延迟 + 随机抖动（±20%）
+func (s *Scheduler) computeStaggerDelay(baseDelay, jitterRange time.Duration, index int) time.Duration {
+	delay := baseDelay * time.Duration(index)
+	if jitterRange <= 0 || s.rnd == nil {
+		if delay < 0 {
+			return 0
+		}
+		return delay
+	}
+
+	max := int64(jitterRange)
+	if max <= 0 {
+		if delay < 0 {
+			return 0
+		}
+		return delay
+	}
+
+	// 随机抖动：±jitterRange
+	offset := s.rnd.Int63n(max*2+1) - max
+	delay += time.Duration(offset)
+	if delay < 0 {
+		return 0
+	}
+	return delay
+}
+
+// sleepWithContext 在指定时间内休眠，支持 context 取消
+func sleepWithContext(ctx context.Context, d time.Duration) bool {
+	if d <= 0 {
+		return true
+	}
+
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false // 被取消
+	case <-timer.C:
+		return true // 正常完成
+	}
 }

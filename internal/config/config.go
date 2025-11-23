@@ -86,6 +86,10 @@ type AppConfig struct {
 	// - >0: 硬上限，超过时监控项会排队等待执行
 	MaxConcurrency int `yaml:"max_concurrency" json:"max_concurrency"`
 
+	// 是否在单个周期内对探测进行错峰（默认 true）
+	// 开启后会将监控项均匀分散在整个巡检周期内，避免流量突发
+	StaggerProbes *bool `yaml:"stagger_probes,omitempty" json:"stagger_probes,omitempty"`
+
 	// 存储配置
 	Storage StorageConfig `yaml:"storage" json:"storage"`
 
@@ -206,6 +210,12 @@ func (c *AppConfig) Normalize() error {
 	}
 	if c.MaxConcurrency < -1 {
 		return fmt.Errorf("max_concurrency 无效值 %d，有效值：-1(无限制)、0(默认10)、>0(硬上限)", c.MaxConcurrency)
+	}
+
+	// 探测错峰（默认开启）
+	if c.StaggerProbes == nil {
+		defaultValue := true
+		c.StaggerProbes = &defaultValue
 	}
 
 	// 存储配置默认值
@@ -363,6 +373,13 @@ func isValidCategory(category string) bool {
 
 // Clone 深拷贝配置（用于热更新回滚）
 func (c *AppConfig) Clone() *AppConfig {
+	// 深拷贝指针字段
+	var staggerPtr *bool
+	if c.StaggerProbes != nil {
+		value := *c.StaggerProbes
+		staggerPtr = &value
+	}
+
 	clone := &AppConfig{
 		Interval:            c.Interval,
 		IntervalDuration:    c.IntervalDuration,
@@ -370,11 +387,23 @@ func (c *AppConfig) Clone() *AppConfig {
 		SlowLatencyDuration: c.SlowLatencyDuration,
 		DegradedWeight:      c.DegradedWeight,
 		MaxConcurrency:      c.MaxConcurrency,
+		StaggerProbes:       staggerPtr,
 		Storage:             c.Storage,
 		Monitors:            make([]ServiceConfig, len(c.Monitors)),
 	}
 	copy(clone.Monitors, c.Monitors)
 	return clone
+}
+
+// ShouldStaggerProbes 返回当前配置是否启用错峰探测
+func (c *AppConfig) ShouldStaggerProbes() bool {
+	if c == nil {
+		return false
+	}
+	if c.StaggerProbes == nil {
+		return true // 默认开启
+	}
+	return *c.StaggerProbes
 }
 
 // validateURL 验证 URL 格式和协议安全性
