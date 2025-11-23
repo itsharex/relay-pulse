@@ -32,6 +32,10 @@ ENV GOMODCACHE=/go/pkg/mod
 
 # 复制 go.mod 和 go.sum,利用 Docker 层缓存
 COPY go.mod go.sum ./
+
+# 使用多个 Go 代理以提高可靠性
+ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+
 RUN go mod download
 
 # 复制源代码
@@ -43,10 +47,11 @@ COPY internal/ ./internal/
 RUN rm -rf internal/api/frontend/dist && mkdir -p internal/api/frontend/dist
 COPY --from=frontend-builder /build/dist/. ./internal/api/frontend/dist/
 
-# 验证构建产物已正确复制（包含 assets 目录）
+# 验证构建产物已正确复制（包含 assets 目录和 favicon.svg）
 RUN ls -la ./internal/api/frontend/dist && \
     ls -la ./internal/api/frontend/dist/assets && \
-    echo "✅ Frontend assets verified"
+    test -f ./internal/api/frontend/dist/favicon.svg && \
+    echo "✅ Frontend assets verified (including favicon.svg)"
 
 # 获取构建时间和版本信息
 ARG VERSION=dev
