@@ -11,7 +11,7 @@ interface HeaderProps {
 
 export function Header({ stats }: HeaderProps) {
   return (
-    <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 sm:mb-6 gap-4 border-b border-slate-800/50 pb-3 sm:pb-4">
+    <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 border-b border-slate-800/50 pb-3">
       {/* 左侧：Logo 和标语 */}
       <div>
         <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
