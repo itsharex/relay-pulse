@@ -103,6 +103,19 @@ func (p *Prober) Probe(ctx context.Context, cfg *config.ServiceConfig) *ProbeRes
 	result.SubStatus = subStatus
 	result.Status, result.SubStatus = evaluateStatus(result.Status, result.SubStatus, bodyBytes, cfg.SuccessContains)
 
+	// 当探测结果不可用时，输出一小段响应内容片段，便于排查（避免输出过长/敏感完整内容）
+	if result.Status == 0 && len(bodyBytes) > 0 {
+		snippet := strings.TrimSpace(aggregateResponseText(bodyBytes))
+		if snippet != "" {
+			const maxSnippetLen = 512 // 防止日志过长
+			if len(snippet) > maxSnippetLen {
+				snippet = snippet[:maxSnippetLen] + "... (truncated)"
+			}
+			log.Printf("[Probe] RESPONSE_SNIPPET %s-%s-%s: %s",
+				cfg.Provider, cfg.Service, cfg.Channel, snippet)
+		}
+	}
+
 	// 日志（不打印敏感信息）
 	log.Printf("[Probe] %s-%s-%s | Code: %d | Latency: %dms | Status: %d | SubStatus: %s",
 		cfg.Provider, cfg.Service, cfg.Channel, resp.StatusCode, latency, result.Status, result.SubStatus)
