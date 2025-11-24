@@ -206,8 +206,13 @@ GRANT ALL PRIVILEGES ON DATABASE llm_monitor TO monitor;
 ##### `success_contains`
 - **类型**: string
 - **说明**: 响应体必须包含的关键字（用于语义验证）
-- **示例**: `"content"`, `"choices"`, `"success"`
-- **行为**: 如果响应体不包含此关键字，即使 HTTP 状态码是 2xx，也会被标记为黄色状态
+- **示例**: `"content"`, `"choices"`, `"success"`, `"pong"`
+- **行为**:
+  - 仅在 HTTP 返回 **2xx 状态码**、且非 429 限流场景下生效；
+  - 当响应内容（包含常见流式 SSE 响应聚合后的文本）**不包含**此关键字时，
+    会将该次探测标记为 **红色不可用**（`content_mismatch`），即使 HTTP 状态码是 2xx；
+  - 支持常见的流式响应格式（如 Anthropic 的 `content_block_delta`、
+    OpenAI 的 `choices[].delta.content`），会自动拼接增量文本再进行关键字匹配。
 
 ## 环境变量覆盖
 
