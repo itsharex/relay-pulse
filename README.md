@@ -37,7 +37,7 @@ docker compose up -d
 open http://localhost:8080
 ```
 
-**🎬 完整安装教程**：[docs/user/install.md](docs/user/install.md)
+**🎬 完整安装教程**：[QUICKSTART.md](QUICKSTART.md)
 
 ### 本地开发
 
@@ -56,38 +56,28 @@ make dev
 go run cmd/server/main.go
 ```
 
-**👨‍💻 开发者指南**：[docs/developer/overview.md](docs/developer/overview.md)
+**👨‍💻 开发者指南**：[CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 📖 文档导航
 
-### 快速索引
+### 快速索引（人类读者）
 
-| 我要... | 看这个 |
-|---------|--------|
-| 🚀 快速部署 | [Docker 安装](docs/user/install.md#docker-部署推荐) |
-| 💻 本地开发 | [快速回忆清单](docs/developer/quick-recall.md#-3分钟重新上手) |
-| ⚙️ 配置监控项 | [配置手册](docs/user/config.md#监控项配置) |
-| 🔧 排查问题 | [运维手册 - 故障排查](docs/user/operations.md#故障排查) |
-| 🏗️ 了解架构 | [架构概览](docs/developer/overview.md) |
-| 🚀 发布新版本 | [版本发布指南](docs/developer/release.md) |
-| 🔄 3个月后回来 | [快速回忆清单](docs/developer/quick-recall.md) |
+| 我要...            | 看这个文档 |
+|--------------------|------------|
+| 🚀 5 分钟内跑起来  | [QUICKSTART.md](QUICKSTART.md) |
+| 💻 本地开发/调试   | 本文档的「本地开发」章节 |
+| ⚙️ 配置监控项      | [配置手册](docs/user/config.md) |
+| 🤝 参与贡献        | [CONTRIBUTING.md](CONTRIBUTING.md) |
+
+> 以上 3–4 个是项目维护方优先保证更新的「核心文档」。`AGENTS.md`、`CLAUDE.md` 主要供 AI 助手使用，通常不需要人类维护。
 
 ---
 
-### 用户文档
-- [安装指南](docs/user/install.md) - Docker/K8s/二进制部署
-- [配置手册](docs/user/config.md) - YAML 配置、环境变量、安全实践
-- [运维手册](docs/user/operations.md) - 健康检查、备份恢复、故障排查
-
-### 开发者文档
-- [快速回忆清单](docs/developer/quick-recall.md) - ⭐ 3个月后快速重新上手
-- [架构概览](docs/developer/overview.md) - 系统设计、模块说明
-- [版本发布指南](docs/developer/release.md) - 🆕 版本号管理、Docker 镜像发布
-- [贡献指南](CONTRIBUTING.md) - 代码规范、提交规范
-- [部署手册](docs/deployment.md) - 多环境部署、CI/CD 建议
-
-### 参考文档
-- API 规范与发布流程文档正在整理，欢迎在 Issue 中提出需求或直接贡献 PR。
+### 核心文档（建议优先阅读）
+- `README.md`（本文件）：项目总览、特性介绍、快速开始、本地开发说明
+- `QUICKSTART.md`：面向用户的快速部署与常见问题
+- `docs/user/config.md`：配置项说明、环境变量规则、安全实践
+- `CONTRIBUTING.md`：贡献流程、代码规范、提交与 PR 约定
 
 ## 🔧 配置示例
 

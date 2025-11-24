@@ -325,7 +325,7 @@ docker rmi ghcr.io/prehisle/relay-pulse:latest
 4. 配置服务器防火墙只允许 Cloudflare IP 访问 80 端口
 5. 修改 `docker-compose.yaml` 端口映射为 `80:8080`
 
-详细配置请参考 `docs/deployment.md` 中的"Cloudflare 配置"章节。
+详细配置可参考 `archive/docs/deployment.md` 中的 "Cloudflare 配置" 章节（历史文档，仅供参考，以当前 README/配置手册为准）。
 
 ### 2. 资源限制
 
@@ -363,9 +363,10 @@ logging:
 
 ## 更多文档
 
-- **完整 Docker 指南**: [DOCKER.md](DOCKER.md)
-- **开发文档**: [CONTRIBUTING.md](CONTRIBUTING.md)
-- **架构说明**: [CLAUDE.md](CLAUDE.md)
+- **项目入口**: [README.md](README.md)
+- **配置手册**: [docs/user/config.md](docs/user/config.md)
+- **贡献指南**: [CONTRIBUTING.md](CONTRIBUTING.md)
+- **AI 助手技术说明**: [CLAUDE.md](CLAUDE.md)（仅供 AI 使用，人类一般不用维护）
 
 ---
 

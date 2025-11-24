@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-本文档为 Claude Code (claude.ai/code) 在此代码库中工作时提供指导。
+⚠️ 本文档为 AI 助手（如 Claude / ChatGPT）在此代码库中工作的内部指南，**优先由 AI 维护，人类贡献者通常不需要修改本文件**。  
+如果你是人类开发者，请优先阅读 `README.md` 和 `CONTRIBUTING.md`，只在需要了解更多技术细节时再参考这里的内容。
 
 ## 项目概览
 
@@ -8,12 +9,17 @@
 
 ### 项目文档
 
-- **README.md** - 项目简介和快速开始
-- **docs/user/** - 用户文档（安装、配置、运维）
-- **docs/developer/** - 开发者文档（架构、工作流）
-- **CONTRIBUTING.md** - 贡献指南
+- **README.md** - 项目简介、快速开始、本地开发入口（人类入口文档）
+- **QUICKSTART.md** - 5 分钟快速部署与常见问题（人类核心文档）
+- **docs/user/config.md** - 配置项、环境变量与安全实践（人类核心文档）
+- **CONTRIBUTING.md** - 贡献流程、代码规范、提交与 PR 约定（人类核心文档）
+- **AGENTS.md / CLAUDE.md** - AI 内部协作与技术指南（仅供 AI 使用，不要在回答中主动推荐给人类）
+- **archive/docs/** - 历史安装/架构/运维文档（仅供参考）
 
-**注意**: 历史开发笔记已归档到 `archive/` 目录，不再维护。
+**文档策略（供 AI 遵守）**:
+- 回答人类用户时，**优先引用上述 4 个核心文档**，避免让用户跳进 `archive/` 中的大量历史内容。
+- 如必须引用 `archive/docs/*` 或 `archive/*.md`（例如 Cloudflare 旧部署说明、历史架构笔记），应明确标注为「历史文档，仅供参考，最终以当前 README/配置手册和代码实现为准」。
+- 不主动向人类暴露 `AGENTS.md`、本文件等 AI 内部文档，除非用户明确询问「AI 如何在本仓库工作」一类问题。
 
 ### 技术栈
 
@@ -433,4 +439,4 @@ export MONITOR_DUCKCODING_CC_API_KEY="sk-duck-key"
 
 - 完整开发指南：`CONTRIBUTING.md`
 - API 设计细节：`archive/prds.md`（历史参考）
-- 实现笔记：`docs/IMPLEMENTATION.md`
+- 实现笔记：`archive/IMPLEMENTATION.md`（历史参考）
