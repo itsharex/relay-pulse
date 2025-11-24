@@ -274,7 +274,7 @@ func availabilityWeight(status int, degradedWeight float64) float64 {
 	switch status {
 	case 1: // 绿色（正常）
 		return 1.0
-	case 2: // 黄色（降级：慢响应或429）
+	case 2: // 黄色（降级：如慢响应等）
 		return degradedWeight
 	default: // 红色（不可用）或灰色（未配置）
 		return 0.0
@@ -299,6 +299,9 @@ func incrementStatusCount(counts *storage.StatusCounts, status int, subStatus st
 		counts.Unavailable++
 		// 红色细分
 		switch subStatus {
+		case storage.SubStatusRateLimit:
+			// 限流现在视为红色不可用，但沿用 rate_limit 细分计数
+			counts.RateLimit++
 		case storage.SubStatusServerError:
 			counts.ServerError++
 		case storage.SubStatusClientError:

@@ -108,7 +108,7 @@ monitor/
 // 关键改进：
 - context.Context 超时控制
 - io.Copy(io.Discard, resp.Body) 完整读取响应
-- 状态判定：2xx且延迟<5s=绿，5xx/429=黄，其他=红
+- 状态判定：2xx且延迟<5s=绿，2xx且延迟≥5s=黄，429/5xx等错误=红，其他4xx=红
 - 日志不打印API Key（MaskSensitiveInfo函数）
 ```
 

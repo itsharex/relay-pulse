@@ -170,9 +170,9 @@ func (p *Prober) determineStatus(statusCode, latency int, slowLatency time.Durat
 		return 0, storage.SubStatusInvalidRequest
 	}
 
-	// 429 = 黄色（速率限制，提醒慢下来）
+	// 429 = 红色（速率限制，视为不可用）
 	if statusCode == 429 {
-		return 2, storage.SubStatusRateLimit
+		return 0, storage.SubStatusRateLimit
 	}
 
 	// 5xx = 红色（服务器错误，视为不可用）

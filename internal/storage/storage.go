@@ -48,7 +48,7 @@ type StatusCounts struct {
 
 	// 细分统计（黄色波动细分）
 	SlowLatency int `json:"slow_latency"` // 黄色-响应慢次数
-	RateLimit   int `json:"rate_limit"`   // 黄色-限流次数
+	RateLimit   int `json:"rate_limit"`   // 限流次数（HTTP 429，当前视为红色不可用）
 
 	// 细分统计（红色不可用细分）
 	ServerError     int `json:"server_error"`     // 红色-服务器错误次数（5xx）
