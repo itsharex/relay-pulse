@@ -1,8 +1,10 @@
 package monitor
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -110,7 +112,8 @@ func (p *Prober) Probe(ctx context.Context, cfg *config.ServiceConfig) *ProbeRes
 
 // evaluateStatus 在基础状态上叠加响应内容匹配规则
 // 对所有 2xx 响应（绿色和慢速黄色）进行内容校验
-// 红色（已失败）和 429 黄色（非正常响应）不做校验
+// 红色（已失败）和 429 黄色（非正常响应）不做校验。
+// 为兼容流式响应，这里会尝试从 SSE/增量数据中聚合出最终文本再做匹配。
 func evaluateStatus(baseStatus int, baseSubStatus storage.SubStatus, body []byte, successContains string) (int, storage.SubStatus) {
 	if successContains == "" {
 		return baseStatus, baseSubStatus
@@ -127,12 +130,13 @@ func evaluateStatus(baseStatus int, baseSubStatus storage.SubStatus, body []byte
 	}
 
 	// 对 2xx 响应（绿色或慢速黄色）做内容校验
-	if len(body) == 0 {
+	text := aggregateResponseText(body)
+	if strings.TrimSpace(text) == "" {
 		// 没有响应内容，降级为红
 		return 0, storage.SubStatusContentMismatch
 	}
 
-	if !strings.Contains(string(body), successContains) {
+	if !strings.Contains(text, successContains) {
 		// 未包含预期内容，认为请求语义失败
 		return 0, storage.SubStatusContentMismatch
 	}
@@ -188,6 +192,106 @@ func (p *Prober) determineStatus(statusCode, latency int, slowLatency time.Durat
 
 	// 完全异常的状态码（< 100 或无法识别）
 	return 0, storage.SubStatusClientError
+}
+
+// aggregateResponseText 将原始响应体整理为用于关键字匹配的文本。
+// - 普通 JSON/文本：直接使用完整 body
+// - SSE / 流式响应：尝试解析 data: 行中的增量内容并拼接
+func aggregateResponseText(body []byte) string {
+	if len(body) == 0 {
+		return ""
+	}
+
+	// 简单启发式：同时包含 "event:" 和 "data:" 时按 SSE 解析
+	if bytes.Contains(body, []byte("event:")) && bytes.Contains(body, []byte("data:")) {
+		if sseText := extractTextFromSSE(body); sseText != "" {
+			return sseText
+		}
+	}
+
+	// 回退到原始响应体
+	return string(body)
+}
+
+// extractTextFromSSE 从 text/event-stream 风格的响应体中抽取语义文本。
+// 当前支持的模式：
+// - Anthropic: event: content_block_delta + data: {"delta":{"type":"text_delta","text":"..."}}
+// - OpenAI:   data: {"choices":[{"delta":{"content":"..."}}]}
+// 解析失败时会尽量回退到原始 data 文本。
+func extractTextFromSSE(body []byte) string {
+	scanner := bufio.NewScanner(bytes.NewReader(body))
+	// 提升单行上限，避免极端情况下行太长
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	var b strings.Builder
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+
+		payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if payload == "" || payload == "[DONE]" {
+			continue
+		}
+
+		var obj map[string]any
+		if err := json.Unmarshal([]byte(payload), &obj); err != nil {
+			// 非 JSON data，直接拼接原始内容
+			if b.Len() > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(payload)
+			continue
+		}
+
+		appendText := func(s string) {
+			if s == "" {
+				return
+			}
+			b.WriteString(s)
+		}
+
+		// Anthropic: {"type":"content_block_delta", "delta":{"type":"text_delta","text":"..."}}
+		if delta, ok := obj["delta"].(map[string]any); ok {
+			if text, ok := delta["text"].(string); ok {
+				appendText(text)
+			}
+		}
+
+		// OpenAI: {"choices":[{"delta":{"content":"..."}}]}
+		if choices, ok := obj["choices"].([]any); ok {
+			for _, ch := range choices {
+				chMap, ok := ch.(map[string]any)
+				if !ok {
+					continue
+				}
+				delta, ok := chMap["delta"].(map[string]any)
+				if !ok {
+					continue
+				}
+				if text, ok := delta["content"].(string); ok {
+					appendText(text)
+				}
+			}
+		}
+
+		// 通用兜底：顶层 content / message 字段
+		if content, ok := obj["content"].(string); ok {
+			appendText(content)
+		}
+		if msg, ok := obj["message"].(string); ok {
+			appendText(msg)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		// 扫描出错时，尽量返回已有内容；彻底失败则交由上层回退
+	}
+
+	return b.String()
 }
 
 // SaveResult 保存探测结果到存储

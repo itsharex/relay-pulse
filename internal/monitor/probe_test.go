@@ -43,3 +43,23 @@ func TestEvaluateStatusWithNonMatchingContent(t *testing.T) {
 		t.Fatalf("expected SubStatusContentMismatch, got %s", subStatus)
 	}
 }
+
+func TestEvaluateStatusWithStreamingContentSplit(t *testing.T) {
+	t.Parallel()
+
+	// 模拟 SSE 流式增量：先返回 "p"，再返回 "ong"
+	body := []byte(
+		"event: content_block_delta\n" +
+			"data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"p\"}}\n\n" +
+			"event: content_block_delta\n" +
+			"data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ong\"}}\n\n",
+	)
+
+	status, subStatus := evaluateStatus(1, storage.SubStatusNone, body, "pong")
+	if status != 1 {
+		t.Fatalf("expected status 1 for streaming body containing aggregated keyword, got %d", status)
+	}
+	if subStatus != storage.SubStatusNone {
+		t.Fatalf("expected SubStatusNone for streaming body, got %s", subStatus)
+	}
+}
