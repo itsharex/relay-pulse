@@ -17,22 +17,6 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: provider-url
-    attributes:
-      label: 官方网站
-      description: 服务商的官方网站地址
-      placeholder: https://example.com
-    validations:
-      required: true
-
-  - type: input
-    id: api-doc
-    attributes:
-      label: API 文档地址
-      description: 开发者文档或 API 文档的链接（如果有）
-      placeholder: https://docs.example.com/api
-
   - type: textarea
     id: selling-points
     attributes:
@@ -47,36 +31,56 @@ body:
     validations:
       required: true
 
-  - type: dropdown
-    id: service-type
+  - type: textarea
+    id: monitor-config-template
     attributes:
-      label: 服务类型
-      description: 该服务商主要提供哪种类型的 API？
-      multiple: true
-      options:
-        - Chat Completions (对话补全)
-        - Embeddings (向量化)
-        - Image Generation (图像生成)
-        - Speech/Audio (语音)
-        - 其他
-
-  - type: dropdown
-    id: willing-to-test
-    attributes:
-      label: 是否愿意提供测试账号协助接入？
-      description: 如果您能提供测试 API Key，将大大加速接入进程
-      options:
-        - 是，可以提供测试账号
-        - 否，仅推荐
+      label: 监控接入配置模板（必填）
+      description: >
+        请按下面的模板提供一份完整的监控配置（不要在此处填写真实 API Key）。
+        填写完成并提交 Issue 后，请务必通过以下任一方式单独发送真实 API Key：
+        - 邮箱（推荐）：prehisle@gmail.com
+        - Linux.do 私信：https://linux.do/u/stoap/summary
+      render: yaml
+      placeholder: |
+        # ----------------------------------------------------------------
+        # 模板说明：请替换 [] 中的内容，保留引号。
+        # 注意：请不要在 GitHub Issue 中填写真实 API Key。
+        # 真实 Key 请通过以下方式私下发送：
+        # - 邮箱（推荐）：prehisle@gmail.com
+        # - Linux.do 私信：https://linux.do/u/stoap/summary
+        # ----------------------------------------------------------------
+        - provider: "[服务商名称]"                  # [必填] 例如：DeepSeek, FoxCode
+          provider_url: "[服务商官网]"              # [选填] 用于展示来源
+          
+          sponsor: "[赞助者名称]"                   # [必填] 你的名字或组织名
+          sponsor_url: "[赞助者链接]"               # [选填] 点击名字跳转的地址 (如 linux.do 帖子)
+          
+          category: "commercial"                   # [必填] commercial(商业/付费) 或 public(公益/免费)
+          
+          service: "cc"                            # [必填] 服务类型: cc (Claude Messages) 或 cx (Codex Responses)
+          channel: "cc-[标识]"                     # [必填] 通道唯一标识，例如: cc-FoxCode-VIP
+          
+          # [必填] 实际调用的 API Key
+          # 此处可使用 sk-xxxx... 掩码示例，真实 Key 请通过邮箱/私信提供
+          api_key: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          
+          # [必填] 接口地址 (注意区分 cc 和 cx 的后缀)
+          # cc 通常是 /v1/messages
+          # cx 通常是 /v1/responses
+          url: "https://api.example.com/v1/messages"
     validations:
       required: true
 
-  - type: input
-    id: contact
+  - type: checkboxes
+    id: confirm-key
     attributes:
-      label: 联系方式（可选）
-      description: 如果需要后续沟通，请留下联系方式
-      placeholder: Email、Telegram、微信等
+      label: 确认事项
+      description: 请确认以下两点后再提交 Issue
+      options:
+        - label: 我不会在 Issue 中填写真实 API Key
+          required: true
+        - label: 我会在提交 Issue 后，通过邮箱（prehisle@gmail.com）或 Linux.do 私信（https://linux.do/u/stoap/summary）单独发送真实 API Key，并在邮件/私信中附上本 Issue 链接
+          required: true
 
   - type: textarea
     id: additional-info
