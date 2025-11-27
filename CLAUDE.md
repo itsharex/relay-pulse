@@ -235,6 +235,30 @@ export const LANGUAGE_PATH_MAP: Record<SupportedLanguage, string> = {
 // 类型守卫：确保类型安全
 export const isSupportedLanguage = (lng: string): lng is SupportedLanguage =>
   (SUPPORTED_LANGUAGES as readonly string[]).includes(lng);
+
+// 语言归一化：处理浏览器语言码
+export const normalizeLanguage = (lng: string): SupportedLanguage => {
+  // 完整匹配（如 'en-US'、'zh-CN'）
+  if (isSupportedLanguage(lng)) {
+    return lng;
+  }
+
+  // 处理无地区码的语言（提取前缀）
+  const prefix = lng.split('-')[0].toLowerCase();
+
+  switch (prefix) {
+    case 'zh':
+      return 'zh-CN'; // 中文 → 简体中文
+    case 'en':
+      return 'en-US'; // 英文 → 美国英语
+    case 'ru':
+      return 'ru-RU'; // 俄语
+    case 'ja':
+      return 'ja-JP'; // 日语
+    default:
+      return 'zh-CN'; // 默认中文
+  }
+};
 ```
 
 **语言切换逻辑** (`Header.tsx`):
@@ -272,10 +296,18 @@ i18n
     detection: {
       order: ['localStorage', 'navigator'],  // 优先级
       caches: ['localStorage'],
+      lookupLocalStorage: 'i18nextLng',
+      // 语言归一化：将浏览器语言标准化
+      convertDetectedLanguage: (lng) => normalizeLanguage(lng),
     },
     // ...
   });
 ```
+
+**优势**:
+- 浏览器设置为 `en` 时自动映射为 `en-US`
+- 浏览器设置为 `zh` 时自动映射为 `zh-CN`
+- 提升首次访问时的语言检测准确性
 
 **URL 路径语言同步** (`router.tsx` 中的 `LanguageWrapper`):
 - URL 路径前缀由 react-router 匹配并传递给 `LanguageWrapper`
@@ -318,7 +350,16 @@ const { t } = useTranslation();
 const timeRanges = getTimeRanges(t);  // 动态翻译
 ```
 
-**SEO 支持** (`App.tsx`):
+**SEO 支持**:
+
+**静态 HTML** (`index.html`):
+```html
+<!-- 使用英文作为默认，更适合国际化和 SEO -->
+<meta name="description" content="RelayPulse - Monitor availability, latency, and sponsored routes of LLM relay services worldwide..." />
+<title>RelayPulse - Availability monitoring for LLM relay services</title>
+```
+
+**动态更新** (`App.tsx`):
 ```typescript
 import { Helmet } from 'react-helmet-async';
 
@@ -337,6 +378,11 @@ function App() {
   );
 }
 ```
+
+**策略说明**:
+- `index.html` 使用**英文**作为默认（利于 SEO 和国际化）
+- React 渲染后，Helmet 会根据检测/选择的语言动态更新
+- 每个语言版本都有完整的 meta 标签翻译
 
 **覆盖范围**: 100% UI 文本（9/9 组件）
 - ✅ App.tsx - meta 标签
