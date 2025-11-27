@@ -2,7 +2,7 @@ import { Activity, CheckCircle, AlertTriangle, Sparkles, Globe } from 'lucide-re
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FEEDBACK_URLS } from '../constants';
-import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES } from '../i18n';
+import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES, LANGUAGE_PATH_MAP, isSupportedLanguage, type SupportedLanguage } from '../i18n';
 
 interface HeaderProps {
   stats: {
@@ -33,26 +33,45 @@ export function Header({ stats }: HeaderProps) {
     }
   };
 
-  const handleLanguageChange = (newLang: string) => {
-    const currentLang = i18n.language;
+  /**
+   * 处理语言切换
+   *
+   * 逻辑：
+   * 1. 移除当前语言的路径前缀（如果有）
+   * 2. 添加新语言的路径前缀（中文除外）
+   * 3. 保留查询参数和 hash
+   * 4. 导航到新路径并更新 i18n 语言状态
+   *
+   * 示例：
+   * - 中文 → 英文：/ → /en/
+   * - 英文 → 俄语：/en/docs → /ru/docs
+   * - 俄语 → 中文：/ru/docs → /docs
+   */
+  const handleLanguageChange = (newLang: SupportedLanguage) => {
+    // 获取当前语言，使用类型守卫确保类型安全
+    const rawLang = i18n.language;
+    const currentLang: SupportedLanguage = isSupportedLanguage(rawLang) ? rawLang : 'zh-CN';
 
     // 构建新路径
     let newPath = location.pathname;
     const queryString = location.search + location.hash;
 
-    // 如果当前是语言路径（如 /en-US/），移除语言前缀
-    if (currentLang !== 'zh-CN' && newPath.startsWith(`/${currentLang}`)) {
-      newPath = newPath.substring(`/${currentLang}`.length) || '/';
+    // 移除当前语言前缀（如果有）
+    const currentPrefix = LANGUAGE_PATH_MAP[currentLang];
+    if (currentPrefix && newPath.startsWith(`/${currentPrefix}`)) {
+      newPath = newPath.substring(`/${currentPrefix}`.length) || '/';
     }
 
     // 添加新语言前缀（中文除外）
-    if (newLang !== 'zh-CN') {
-      newPath = `/${newLang}${newPath === '/' ? '' : newPath}`;
+    const newPrefix = LANGUAGE_PATH_MAP[newLang];
+    if (newPrefix) {
+      newPath = `/${newPrefix}${newPath === '/' ? '' : newPath}`;
     }
 
-    // 更新当前语言（包括切回中文的场景）
+    // 更新 i18n 语言状态
     i18n.changeLanguage(newLang);
 
+    // 导航到新路径
     navigate(newPath + queryString);
   };
 
@@ -92,7 +111,7 @@ export function Header({ stats }: HeaderProps) {
           </button>
 
           {/* 下拉菜单 */}
-          <div className="absolute right-0 mt-2 w-48 py-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+          <div className="absolute right-0 mt-2 w-32 py-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
             {SUPPORTED_LANGUAGES.map((lang) => (
               <button
                 key={lang}

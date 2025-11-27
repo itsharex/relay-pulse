@@ -181,45 +181,107 @@ frontend/src/
 
 **支持的语言**:
 - 🇨🇳 **中文** (zh-CN) - 默认语言，路径 `/`
-- 🇺🇸 **English** (en-US) - 路径 `/en-US/`
-- 🇷🇺 **Русский** (ru-RU) - 路径 `/ru-RU/`
-- 🇯🇵 **日本語** (ja-JP) - 路径 `/ja-JP/`
+- 🇺🇸 **English** (en-US) - 路径 `/en/`（简化）
+- 🇷🇺 **Русский** (ru-RU) - 路径 `/ru/`（简化）
+- 🇯🇵 **日本語** (ja-JP) - 路径 `/ja/`（简化）
 
 **技术实现**:
 1. **react-i18next**: 核心翻译框架，支持嵌套 JSON、参数插值
-2. **react-router-dom v6**: 基于路径前缀的语言路由（`/:lang/*`）
+2. **react-router-dom v6**: 基于简化路径前缀的语言路由（`/en/*`、`/ru/*`、`/ja/*`）
 3. **react-helmet-async**: 动态更新 `<title>` 和 `<meta name="description">` 支持 SEO
-4. **i18next-browser-languagedetector**: 自动检测语言（URL > localStorage > 浏览器语言）
+4. **i18next-browser-languagedetector**: 自动检测语言（localStorage > 浏览器语言）
+
+**设计原则**:
+- **URL 简洁性**: 使用简化语言码（`/en/` 而非 `/en-US/`）提升美观性
+- **内部完整性**: 内部仍使用完整 locale（`en-US`）兼容 i18next
+- **类型安全**: 使用类型守卫 `isSupportedLanguage` 确保类型正确性
+- **路由分层**: `/api/*`、`/health` 等技术路径不参与 i18n
 
 **路由策略**:
 ```typescript
 // router.tsx
 <Routes>
-  <Route path="/" element={<LanguageWrapper />} />           {/* 中文：无前缀 */}
-  <Route path="/:lang/*" element={<LanguageWrapper />} />    {/* 其他语言 */}
+  {/* 中文默认路径（无前缀） */}
+  <Route path="/" element={<LanguageWrapper />} />
+
+  {/* 简化语言前缀路径 */}
+  <Route path="/en/*" element={<LanguageWrapper pathLang="en" />} />
+  <Route path="/ru/*" element={<LanguageWrapper pathLang="ru" />} />
+  <Route path="/ja/*" element={<LanguageWrapper pathLang="ja" />} />
+
+  {/* 捕获所有未匹配路径 */}
   <Route path="*" element={<Navigate to="/" replace />} />
 </Routes>
 ```
 
+**核心映射** (`i18n/index.ts`):
+```typescript
+// URL 路径前缀 → 语言编码
+export const PATH_LANGUAGE_MAP: Record<string, SupportedLanguage> = {
+  '': 'zh-CN',   // 根路径默认中文
+  en: 'en-US',   // /en/ → en-US
+  ru: 'ru-RU',   // /ru/ → ru-RU
+  ja: 'ja-JP',   // /ja/ → ja-JP
+};
+
+// 语言编码 → URL 路径前缀（反向映射）
+export const LANGUAGE_PATH_MAP: Record<SupportedLanguage, string> = {
+  'zh-CN': '',   // 中文无前缀
+  'en-US': 'en', // en-US → /en/
+  'ru-RU': 'ru', // ru-RU → /ru/
+  'ja-JP': 'ja', // ja-JP → /ja/
+};
+
+// 类型守卫：确保类型安全
+export const isSupportedLanguage = (lng: string): lng is SupportedLanguage =>
+  (SUPPORTED_LANGUAGES as readonly string[]).includes(lng);
+```
+
 **语言切换逻辑** (`Header.tsx`):
 ```typescript
-const handleLanguageChange = (newLang: string) => {
+const handleLanguageChange = (newLang: SupportedLanguage) => {
+  const rawLang = i18n.language;
+  const currentLang: SupportedLanguage = isSupportedLanguage(rawLang) ? rawLang : 'zh-CN';
+
   let newPath = location.pathname;
   const queryString = location.search + location.hash;
 
-  // 移除当前语言前缀
-  if (currentLang !== 'zh-CN' && newPath.startsWith(`/${currentLang}`)) {
-    newPath = newPath.substring(`/${currentLang}`.length) || '/';
+  // 移除当前语言前缀（如果有）
+  const currentPrefix = LANGUAGE_PATH_MAP[currentLang];
+  if (currentPrefix && newPath.startsWith(`/${currentPrefix}`)) {
+    newPath = newPath.substring(`/${currentPrefix}`.length) || '/';
   }
 
   // 添加新语言前缀（中文除外）
-  if (newLang !== 'zh-CN') {
-    newPath = `/${newLang}${newPath === '/' ? '' : newPath}`;
+  const newPrefix = LANGUAGE_PATH_MAP[newLang];
+  if (newPrefix) {
+    newPath = `/${newPrefix}${newPath === '/' ? '' : newPath}`;
   }
 
   navigate(newPath + queryString);  // 保留查询参数和 hash
 };
 ```
+
+**语言检测策略**:
+```typescript
+// i18n 配置（i18n/index.ts）
+i18n
+  .use(initReactI18next)
+  .use(LanguageDetector)
+  .init({
+    detection: {
+      order: ['localStorage', 'navigator'],  // 优先级
+      caches: ['localStorage'],
+    },
+    // ...
+  });
+```
+
+**URL 路径语言同步** (`router.tsx` 中的 `LanguageWrapper`):
+- URL 路径前缀由 react-router 匹配并传递给 `LanguageWrapper`
+- `LanguageWrapper` 负责将 URL 语言同步到 i18next
+- 根路径 `/` 使用 localStorage 或浏览器语言（无强制中文）
+- 特定语言路径（`/en/`、`/ru/`、`/ja/`）强制使用对应语言
 
 **翻译文件结构** (`i18n/locales/*.json`):
 ```json
@@ -254,31 +316,6 @@ export const getTimeRanges = (t: TFunction): TimeRange[] => [
 // 组件中使用
 const { t } = useTranslation();
 const timeRanges = getTimeRanges(t);  // 动态翻译
-```
-
-**自定义语言检测器** (`i18n/index.ts`):
-```typescript
-const pathLanguageDetector = {
-  name: 'path',
-  lookup() {
-    const pathLang = getLanguageFromPath(window.location.pathname);
-    return pathLang || undefined;
-  },
-  cacheUserLanguage(lng: string) {
-    void lng;  // 语言通过 URL 管理，不需要额外缓存
-  },
-};
-
-i18n
-  .use(initReactI18next)
-  .use(LanguageDetector)
-  .init({
-    detection: {
-      order: ['path', 'localStorage', 'navigator'],  // 优先级
-      caches: ['localStorage'],
-    },
-    // ...
-  });
 ```
 
 **SEO 支持** (`App.tsx`):
