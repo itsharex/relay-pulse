@@ -96,7 +96,7 @@ export function Header({ stats }: HeaderProps) {
       {/* 右侧：语言切换、统计和推荐按钮 */}
       <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3 sm:gap-4 text-sm md:items-center">
         {/* 语言切换器 */}
-        <div className="relative group">
+        <div className="relative inline-block group">
           <button
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 hover:border-slate-600 transition-all duration-200"
             aria-label={t('accessibility.changeLanguage')}
@@ -110,8 +110,8 @@ export function Header({ stats }: HeaderProps) {
             </svg>
           </button>
 
-          {/* 下拉菜单 */}
-          <div className="absolute right-0 mt-2 w-32 py-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+          {/* 下拉菜单：左侧与触发按钮对齐，宽度至少与按钮一致，必要时可随内容扩展 */}
+          <div className="absolute left-0 mt-2 min-w-full w-max py-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
             {SUPPORTED_LANGUAGES.map((lang) => (
               <button
                 key={lang}
