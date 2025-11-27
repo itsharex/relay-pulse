@@ -7,7 +7,7 @@ WORKDIR /build
 
 # 复制 package.json 和 lock 文件,利用缓存
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # 复制前端源代码
 COPY frontend/ ./
