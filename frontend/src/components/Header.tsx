@@ -110,13 +110,13 @@ export function Header({ stats }: HeaderProps) {
             </svg>
           </button>
 
-          {/* 下拉菜单：左侧与触发按钮对齐，宽度至少与按钮一致，必要时可随内容扩展 */}
-          <div className="absolute left-0 mt-2 min-w-full w-max py-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+          {/* 下拉菜单：宽度与触发按钮完全一致 */}
+          <div className="absolute left-0 mt-2 w-full py-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
             {SUPPORTED_LANGUAGES.map((lang) => (
               <button
                 key={lang}
                 onClick={() => handleLanguageChange(lang)}
-                className={`w-full px-4 py-2.5 text-left flex items-center gap-2.5 hover:bg-slate-700/50 transition-colors ${
+                className={`w-full px-3 py-2.5 text-left flex items-center gap-2.5 hover:bg-slate-700/50 transition-colors ${
                   i18n.language === lang ? 'bg-slate-700/30 text-cyan-400' : 'text-slate-300'
                 }`}
               >
