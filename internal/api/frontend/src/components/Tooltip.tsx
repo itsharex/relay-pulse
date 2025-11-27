@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { TooltipState } from '../types';
 import { availabilityToColor } from '../utils/color';
 import { createMediaQueryEffect } from '../utils/mediaQuery';
@@ -10,6 +11,7 @@ interface TooltipProps {
 }
 
 export function Tooltip({ tooltip, onClose }: TooltipProps) {
+  const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
 
   // 检测是否为移动端（兼容 Safari ≤13）
@@ -38,44 +40,44 @@ export function Tooltip({ tooltip, onClose }: TooltipProps) {
 
   // 状态统计
   const statusSummary = [
-    { key: 'available', emoji: '🟢', label: '可用', value: counts.available },
-    { key: 'degraded', emoji: '🟡', label: '波动', value: counts.degraded },
-    { key: 'unavailable', emoji: '🔴', label: '不可用', value: counts.unavailable },
+    { key: 'available', emoji: '🟢', label: t('status.available'), value: counts.available },
+    { key: 'degraded', emoji: '🟡', label: t('status.degraded'), value: counts.degraded },
+    { key: 'unavailable', emoji: '🔴', label: t('status.unavailable'), value: counts.unavailable },
   ];
 
   // 黄色波动细分
   const degradedSubstatus = [
-    { key: 'slow_latency', label: '响应慢', value: counts.slow_latency },
+    { key: 'slow_latency', label: t('subStatus.slow_latency'), value: counts.slow_latency },
   ].filter(item => item.value > 0);
 
   // 红色不可用细分
   const unavailableSubstatus = [
-    { key: 'server_error', label: '服务器错误', value: counts.server_error },
-    { key: 'client_error', label: '客户端错误', value: counts.client_error },
-    { key: 'auth_error', label: '认证失败', value: counts.auth_error },
-    { key: 'invalid_request', label: '请求参数错误', value: counts.invalid_request },
-    { key: 'network_error', label: '连接失败', value: counts.network_error },
-    { key: 'rate_limit', label: '限流', value: counts.rate_limit },
-    { key: 'content_mismatch', label: '内容校验失败', value: counts.content_mismatch },
+    { key: 'server_error', label: t('subStatus.server_error'), value: counts.server_error },
+    { key: 'client_error', label: t('subStatus.client_error'), value: counts.client_error },
+    { key: 'auth_error', label: t('subStatus.auth_error'), value: counts.auth_error },
+    { key: 'invalid_request', label: t('subStatus.invalid_request'), value: counts.invalid_request },
+    { key: 'network_error', label: t('subStatus.network_error'), value: counts.network_error },
+    { key: 'rate_limit', label: t('subStatus.rate_limit'), value: counts.rate_limit },
+    { key: 'content_mismatch', label: t('subStatus.content_mismatch'), value: counts.content_mismatch },
   ].filter(item => item.value > 0);
 
   // Tooltip 内容（桌面和移动端共用）
   const TooltipContent = () => (
     <>
       <div className="text-slate-400 text-center">
-        {new Date(tooltip.data!.timestampNum * 1000).toLocaleString('zh-CN')}
+        {new Date(tooltip.data!.timestampNum * 1000).toLocaleString(i18n.language)}
       </div>
       {tooltip.data!.availability >= 0 && (
         <div
           className="font-medium text-center text-sm md:text-xs"
           style={{ color: availabilityToColor(tooltip.data!.availability) }}
         >
-          可用率: {tooltip.data!.availability.toFixed(2)}%
+          {t('tooltip.uptime')} {tooltip.data!.availability.toFixed(2)}%
         </div>
       )}
       {tooltip.data!.latency > 0 && (
         <div className="text-slate-500 text-[10px] text-center">
-          延迟: {tooltip.data!.latency}ms
+          {t('tooltip.latency')} {tooltip.data!.latency}ms
         </div>
       )}
 
@@ -87,7 +89,7 @@ export function Tooltip({ tooltip, onClose }: TooltipProps) {
               {item.emoji} {item.label}
             </span>
             <span className="text-slate-100 font-semibold tabular-nums">
-              {item.value} 次
+              {item.value} {t('tooltip.count')}
             </span>
           </div>
         ))}
@@ -96,7 +98,7 @@ export function Tooltip({ tooltip, onClose }: TooltipProps) {
       {/* 黄色波动细分 */}
       {degradedSubstatus.length > 0 && (
         <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
-          <div className="text-[10px] text-slate-400 mb-0.5">🟡 波动细分</div>
+          <div className="text-[10px] text-slate-400 mb-0.5">{t('tooltip.degradedTitle')}</div>
           {degradedSubstatus.map((item) => (
             <div key={item.key} className="flex justify-between items-center gap-3 text-[10px] pl-2">
               <span className="text-slate-400">• {item.label}</span>
@@ -109,7 +111,7 @@ export function Tooltip({ tooltip, onClose }: TooltipProps) {
       {/* 红色不可用细分 */}
       {unavailableSubstatus.length > 0 && (
         <div className="flex flex-col gap-1 pt-2 border-t border-slate-700/50">
-          <div className="text-[10px] text-slate-400 mb-0.5">🔴 不可用细分</div>
+          <div className="text-[10px] text-slate-400 mb-0.5">{t('tooltip.unavailableTitle')}</div>
           {unavailableSubstatus.map((item) => (
             <div key={item.key} className="flex justify-between items-center gap-3 text-[10px] pl-2">
               <span className="text-slate-400">• {item.label}</span>
@@ -142,11 +144,11 @@ export function Tooltip({ tooltip, onClose }: TooltipProps) {
 
           {/* 头部 */}
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-slate-200">数据详情</h3>
+            <h3 className="text-sm font-semibold text-slate-200">{t('tooltip.title')}</h3>
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
-              aria-label="关闭"
+              aria-label={t('common.close')}
             >
               <X size={16} />
             </button>
