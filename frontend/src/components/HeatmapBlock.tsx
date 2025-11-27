@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ProcessedMonitorData } from '../types';
 import { availabilityToStyle } from '../utils/color';
 import { createMediaQueryEffect } from '../utils/mediaQuery';
@@ -21,6 +22,7 @@ export function HeatmapBlock({
   onHover,
   onLeave,
 }: HeatmapBlockProps) {
+  const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
 
   // 检测是否为移动端（< 768px）
@@ -55,7 +57,11 @@ export function HeatmapBlock({
       onFocus={isMobile ? undefined : (e) => onHover(e as any, point)}
       onBlur={isMobile ? undefined : onLeave}
       // 无障碍标签
-      aria-label={`可用率 ${point.availability >= 0 ? point.availability.toFixed(1) + '%' : '无数据'}`}
+      aria-label={
+        point.availability >= 0
+          ? t('accessibility.uptimeBlock', { uptime: point.availability.toFixed(1) })
+          : t('accessibility.noDataBlock')
+      }
     />
   );
 }

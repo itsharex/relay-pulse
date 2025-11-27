@@ -155,13 +155,18 @@ React SPA，基于组件的结构：
 frontend/src/
 ├── components/            → UI 组件（StatusCard、StatusTable、Tooltip 等）
 ├── hooks/                 → 自定义 Hooks（useMonitorData 用于 API 数据获取）
+├── i18n/                  → 国际化配置
+│   ├── index.ts          → i18n 配置、语言检测器、语言映射
+│   └── locales/          → 翻译文件（zh-CN, en-US, ru-RU, ja-JP）
 ├── types/                 → TypeScript 类型定义
 ├── constants/             → 应用常量（API URLs、时间周期）
 ├── utils/                 → 工具函数
 │   ├── mediaQuery.ts     → 响应式断点管理（统一的 matchMedia API）
 │   ├── heatmapAggregator.ts → 热力图数据聚合
 │   └── color.ts          → 颜色工具函数
-└── App.tsx               → 主应用组件
+├── App.tsx               → 主应用组件
+├── router.tsx            → 路由配置（语言路径前缀）
+└── main.tsx              → 应用入口（BrowserRouter、HelmetProvider）
 ```
 
 **关键模式：**
@@ -170,6 +175,142 @@ frontend/src/
 - **Tailwind CSS**: Tailwind v4 实用优先的样式
 - **组件组合**: 小型、可复用组件
 - **响应式设计**: 移动优先，使用 matchMedia API 实现稳定断点检测
+- **国际化**: react-i18next + react-router-dom 实现 URL 路径多语言
+
+### 国际化架构 (i18n)
+
+**支持的语言**:
+- 🇨🇳 **中文** (zh-CN) - 默认语言，路径 `/`
+- 🇺🇸 **English** (en-US) - 路径 `/en-US/`
+- 🇷🇺 **Русский** (ru-RU) - 路径 `/ru-RU/`
+- 🇯🇵 **日本語** (ja-JP) - 路径 `/ja-JP/`
+
+**技术实现**:
+1. **react-i18next**: 核心翻译框架，支持嵌套 JSON、参数插值
+2. **react-router-dom v6**: 基于路径前缀的语言路由（`/:lang/*`）
+3. **react-helmet-async**: 动态更新 `<title>` 和 `<meta name="description">` 支持 SEO
+4. **i18next-browser-languagedetector**: 自动检测语言（URL > localStorage > 浏览器语言）
+
+**路由策略**:
+```typescript
+// router.tsx
+<Routes>
+  <Route path="/" element={<LanguageWrapper />} />           {/* 中文：无前缀 */}
+  <Route path="/:lang/*" element={<LanguageWrapper />} />    {/* 其他语言 */}
+  <Route path="*" element={<Navigate to="/" replace />} />
+</Routes>
+```
+
+**语言切换逻辑** (`Header.tsx`):
+```typescript
+const handleLanguageChange = (newLang: string) => {
+  let newPath = location.pathname;
+  const queryString = location.search + location.hash;
+
+  // 移除当前语言前缀
+  if (currentLang !== 'zh-CN' && newPath.startsWith(`/${currentLang}`)) {
+    newPath = newPath.substring(`/${currentLang}`.length) || '/';
+  }
+
+  // 添加新语言前缀（中文除外）
+  if (newLang !== 'zh-CN') {
+    newPath = `/${newLang}${newPath === '/' ? '' : newPath}`;
+  }
+
+  navigate(newPath + queryString);  // 保留查询参数和 hash
+};
+```
+
+**翻译文件结构** (`i18n/locales/*.json`):
+```json
+{
+  "meta": { "title": "...", "description": "..." },
+  "common": { "loading": "...", "error": "...", ... },
+  "header": { "tagline": "...", "stats": {...}, ... },
+  "controls": { "filters": {...}, "timeRanges": {...}, ... },
+  "table": { "headers": {...}, "sorting": {...}, "category": {...}, ... },
+  "status": { "available": "...", "degraded": "...", ... },
+  "subStatus": { "slow_latency": "...", "rate_limit": "...", ... },
+  "tooltip": { "uptime": "...", "latency": "...", ... },
+  "footer": { "disclaimer": {...}, ... },
+  "accessibility": { "uptimeBlock": "...", ... }
+}
+```
+
+**工厂模式** - 动态注入翻译到常量 (`constants/index.ts`):
+```typescript
+// 向后兼容：保留原有静态导出
+export const TIME_RANGES: TimeRange[] = [
+  { id: '24h', label: '近24小时', points: 24, unit: 'hour' },
+  // ...
+];
+
+// i18n 版本：工厂函数
+export const getTimeRanges = (t: TFunction): TimeRange[] => [
+  { id: '24h', label: t('controls.timeRanges.24h'), points: 24, unit: 'hour' },
+  // ...
+];
+
+// 组件中使用
+const { t } = useTranslation();
+const timeRanges = getTimeRanges(t);  // 动态翻译
+```
+
+**自定义语言检测器** (`i18n/index.ts`):
+```typescript
+const pathLanguageDetector = {
+  name: 'path',
+  lookup() {
+    const pathLang = getLanguageFromPath(window.location.pathname);
+    return pathLang || undefined;
+  },
+  cacheUserLanguage(lng: string) {
+    void lng;  // 语言通过 URL 管理，不需要额外缓存
+  },
+};
+
+i18n
+  .use(initReactI18next)
+  .use(LanguageDetector)
+  .init({
+    detection: {
+      order: ['path', 'localStorage', 'navigator'],  // 优先级
+      caches: ['localStorage'],
+    },
+    // ...
+  });
+```
+
+**SEO 支持** (`App.tsx`):
+```typescript
+import { Helmet } from 'react-helmet-async';
+
+function App() {
+  const { t, i18n } = useTranslation();
+
+  return (
+    <>
+      <Helmet>
+        <html lang={i18n.language} />
+        <title>{t('meta.title')}</title>
+        <meta name="description" content={t('meta.description')} />
+      </Helmet>
+      {/* ... */}
+    </>
+  );
+}
+```
+
+**覆盖范围**: 100% UI 文本（9/9 组件）
+- ✅ App.tsx - meta 标签
+- ✅ Header.tsx - 语言切换、tagline、统计
+- ✅ Footer.tsx - 免责声明
+- ✅ Controls.tsx - 筛选器、时间范围、视图切换
+- ✅ StatusTable.tsx - 表头、排序、分类标签、详情
+- ✅ StatusCard.tsx - 可用率标签、时间标签
+- ✅ Tooltip.tsx - 状态标签、子状态细分
+- ✅ HeatmapBlock.tsx - 无障碍 aria-label
+- ✅ constants/index.ts - 状态配置、时间范围
 
 ### 响应式断点系统
 

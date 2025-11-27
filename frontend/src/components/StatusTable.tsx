@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, Zap, Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
 import { ExternalLink } from './ExternalLink';
-import { STATUS, TIME_RANGES } from '../constants';
+import { getStatusConfig, getTimeRanges } from '../constants';
 import { availabilityToColor } from '../utils/color';
 import { aggregateHeatmap } from '../utils/heatmapAggregator';
 import { createMediaQueryEffect } from '../utils/mediaQuery';
@@ -30,7 +31,9 @@ function MobileListItem({
   onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
   onBlockLeave: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const STATUS = getStatusConfig(t);
 
   // 聚合热力图数据
   const aggregatedHistory = useMemo(
@@ -65,7 +68,7 @@ function MobileListItem({
                     : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
                 }`}
               >
-                {item.category === 'commercial' ? '推' : '益'}
+                {item.category === 'commercial' ? t('table.categoryShort.promoted') : t('table.categoryShort.charity')}
               </span>
             </div>
             <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
@@ -124,12 +127,12 @@ function MobileListItem({
         {expanded ? (
           <>
             <ChevronUp size={14} />
-            收起详情
+            {t('table.collapseDetails')}
           </>
         ) : (
           <>
             <ChevronDown size={14} />
-            查看详情
+            {t('table.expandDetails')}
           </>
         )}
       </button>
@@ -138,20 +141,20 @@ function MobileListItem({
       {expanded && (
         <div className="pt-3 border-t border-slate-800 space-y-2 text-xs">
           <div className="flex justify-between">
-            <span className="text-slate-500">赞助者</span>
+            <span className="text-slate-500">{t('common.sponsor')}</span>
             <span className="text-slate-300">
               <ExternalLink href={item.sponsorUrl}>{item.sponsor}</ExternalLink>
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">通道</span>
+            <span className="text-slate-500">{t('common.channel')}</span>
             <span className="text-slate-300">{item.channel || '-'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">最后检测</span>
+            <span className="text-slate-500">{t('common.lastCheck')}</span>
             <span className="text-slate-300 font-mono">
               {item.lastCheckTimestamp
-                ? new Date(item.lastCheckTimestamp * 1000).toLocaleString('zh-CN', {
+                ? new Date(item.lastCheckTimestamp * 1000).toLocaleString(i18n.language, {
                     month: '2-digit',
                     day: '2-digit',
                     hour: '2-digit',
@@ -162,7 +165,7 @@ function MobileListItem({
           </div>
           {item.lastCheckLatency !== undefined && (
             <div className="flex justify-between">
-              <span className="text-slate-500">延迟</span>
+              <span className="text-slate-500">{t('common.latency')}</span>
               <span className="text-slate-300 font-mono">{item.lastCheckLatency}ms</span>
             </div>
           )}
@@ -180,16 +183,18 @@ function MobileSortMenu({
   sortConfig: SortConfig;
   onSort: (key: string) => void;
 }) {
+  const { t } = useTranslation();
+
   const sortOptions = [
-    { key: 'providerName', label: '服务商' },
-    { key: 'uptime', label: '可用率' },
-    { key: 'currentStatus', label: '当前状态' },
-    { key: 'serviceType', label: '服务类型' },
+    { key: 'providerName', label: t('table.sorting.provider') },
+    { key: 'uptime', label: t('table.sorting.uptime') },
+    { key: 'currentStatus', label: t('table.sorting.status') },
+    { key: 'serviceType', label: t('table.sorting.service') },
   ];
 
   return (
     <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
-      <span className="text-xs text-slate-500 flex-shrink-0">排序:</span>
+      <span className="text-xs text-slate-500 flex-shrink-0">{t('controls.sortBy')}</span>
       {sortOptions.map((option) => (
         <button
           key={option.key}
@@ -222,7 +227,9 @@ export function StatusTable({
   onBlockHover,
   onBlockLeave,
 }: StatusTableProps) {
+  const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
+  const STATUS = getStatusConfig(t);
 
   // 检测是否为平板/移动端（< 960px，兼容 Safari ≤13）
   useEffect(() => {
@@ -240,7 +247,7 @@ export function StatusTable({
     );
   };
 
-  const currentTimeRange = TIME_RANGES.find((r) => r.id === timeRange);
+  const currentTimeRange = getTimeRanges(t).find((r) => r.id === timeRange);
 
   // 移动端：卡片列表视图
   if (isMobile) {
@@ -272,7 +279,7 @@ export function StatusTable({
               onClick={() => onSort('providerName')}
             >
               <div className="flex items-center">
-                服务商 <SortIcon columnKey="providerName" />
+                {t('table.headers.provider')} <SortIcon columnKey="providerName" />
               </div>
             </th>
             <th
@@ -280,7 +287,7 @@ export function StatusTable({
               onClick={() => onSort('sponsor')}
             >
               <div className="flex items-center">
-                赞助者 <SortIcon columnKey="sponsor" />
+                {t('table.headers.sponsor')} <SortIcon columnKey="sponsor" />
               </div>
             </th>
             <th
@@ -288,7 +295,7 @@ export function StatusTable({
               onClick={() => onSort('serviceType')}
             >
               <div className="flex items-center">
-                服务 <SortIcon columnKey="serviceType" />
+                {t('table.headers.service')} <SortIcon columnKey="serviceType" />
               </div>
             </th>
             <th
@@ -296,7 +303,7 @@ export function StatusTable({
               onClick={() => onSort('channel')}
             >
               <div className="flex items-center">
-                通道 <SortIcon columnKey="channel" />
+                {t('table.headers.channel')} <SortIcon columnKey="channel" />
               </div>
             </th>
             <th
@@ -304,7 +311,7 @@ export function StatusTable({
               onClick={() => onSort('currentStatus')}
             >
               <div className="flex items-center">
-                当前状态 <SortIcon columnKey="currentStatus" />
+                {t('table.headers.status')} <SortIcon columnKey="currentStatus" />
               </div>
             </th>
             <th
@@ -312,13 +319,13 @@ export function StatusTable({
               onClick={() => onSort('uptime')}
             >
               <div className="flex items-center">
-                可用率 <SortIcon columnKey="uptime" />
+                {t('table.headers.uptime')} <SortIcon columnKey="uptime" />
               </div>
             </th>
-            <th className="p-4 font-medium">最后检测</th>
+            <th className="p-4 font-medium">{t('table.headers.lastCheck')}</th>
             <th className="p-4 font-medium w-1/3 min-w-[200px]">
               <div className="flex items-center gap-2">
-                质量趋势
+                {t('table.headers.trend')}
                 <span className="text-[10px] normal-case opacity-50 border border-slate-700 px-1 rounded">
                   {currentTimeRange?.label}
                 </span>
@@ -341,9 +348,9 @@ export function StatusTable({
                         ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
                         : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
                     }`}
-                    title={item.category === 'commercial' ? '推广站' : '公益站'}
+                    title={item.category === 'commercial' ? t('table.categoryLabels.promoted') : t('table.categoryLabels.charity')}
                   >
-                    {item.category === 'commercial' ? '推' : '益'}
+                    {item.category === 'commercial' ? t('table.categoryShort.promoted') : t('table.categoryShort.charity')}
                   </span>
                 </div>
               </td>
@@ -382,7 +389,7 @@ export function StatusTable({
               <td className="p-4">
                 {item.lastCheckTimestamp ? (
                   <div className="text-xs text-slate-400 font-mono flex flex-col gap-0.5">
-                    <span>{new Date(item.lastCheckTimestamp * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>{new Date(item.lastCheckTimestamp * 1000).toLocaleString(i18n.language, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     {item.lastCheckLatency !== undefined && (
                       <span className="text-slate-600 text-[10px]">{item.lastCheckLatency}ms</span>
                     )}

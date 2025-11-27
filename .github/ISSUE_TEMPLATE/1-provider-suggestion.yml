@@ -79,7 +79,7 @@ body:
       options:
         - label: 我不会在 Issue 中填写真实 API Key
           required: true
-        - label: 我会在提交 Issue 后，通过邮箱（prehisle@gmail.com）或 Linux.do 私信（https://linux.do/u/stoap/summary）单独发送真实 API Key，并在邮件/私信中附上本 Issue 链接
+        - label: 我会在提交 Issue 后，通过邮箱 prehisle@gmail.com 或 Linux.do 私信 https://linux.do/u/stoap/summary 单独发送真实 API Key，并在邮件/私信中附上本 Issue 链接
           required: true
 
   - type: textarea

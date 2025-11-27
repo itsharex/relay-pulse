@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "title": "RelayPulse - LLM 中转服务可用性监控",
+    "description": "RelayPulse - 实时监控全球 LLM 中转服务的可用性、延迟与赞助链路，帮助开发者快速评估服务商质量，发现最稳定的 API 提供商。支持 Claude、GPT 等主流模型的连通性检测。"
+  },
+  "common": {
+    "loading": "正在同步数据节点...",
+    "error": "加载失败: {{message}}",
+    "noData": "未找到符合条件的服务节点",
+    "refresh": "刷新数据",
+    "close": "关闭",
+    "apply": "应用筛选",
+    "clear": "清空所有筛选",
+    "sponsor": "赞助者",
+    "channel": "通道",
+    "latency": "延迟",
+    "lastCheck": "最后检测",
+    "uptime": "可用率",
+    "now": "现在",
+    "unknownProvider": "未命名服务商"
+  },
+  "header": {
+    "tagline": "实时监控API中转服务可用性矩阵",
+    "recommendBtn": "推荐服务商",
+    "stats": {
+      "healthy": "正常运行",
+      "issues": "异常告警"
+    }
+  },
+  "controls": {
+    "filters": {
+      "category": "所有分类",
+      "categoryLabel": "服务分类",
+      "provider": "所有服务商",
+      "service": "所有服务",
+      "channel": "所有通道"
+    },
+    "categories": {
+      "charity": "公益站",
+      "promoted": "推广站"
+    },
+    "services": {
+      "cc": "Claude Code (cc)",
+      "cx": "Codex (cx)"
+    },
+    "timeRanges": {
+      "24h": "近24小时",
+      "7d": "近7天",
+      "30d": "近30天"
+    },
+    "views": {
+      "table": "表格视图",
+      "card": "卡片视图",
+      "switchToTable": "切换到表格视图",
+      "switchToCard": "切换到卡片视图"
+    },
+    "mobile": {
+      "filterBtn": "筛选",
+      "filterTitle": "筛选条件",
+      "closeFilter": "关闭筛选"
+    },
+    "sortBy": "排序:"
+  },
+  "table": {
+    "headers": {
+      "provider": "服务商",
+      "sponsor": "赞助者",
+      "service": "服务",
+      "channel": "通道",
+      "status": "当前状态",
+      "uptime": "可用率",
+      "lastCheck": "最后检测",
+      "trend": "质量趋势"
+    },
+    "sorting": {
+      "provider": "服务商",
+      "uptime": "可用率",
+      "status": "当前状态",
+      "service": "服务类型"
+    },
+    "categoryLabels": {
+      "promoted": "推广站",
+      "charity": "公益站"
+    },
+    "categoryShort": {
+      "promoted": "推",
+      "charity": "益"
+    },
+    "expandDetails": "查看详情",
+    "collapseDetails": "收起详情",
+    "heatmapHint": "点击色块查看详细信息（已聚合 {{from}} → {{to}} 个数据点）",
+    "timeLabels": {
+      "24h": "24h",
+      "days": "{{count}}d"
+    }
+  },
+  "card": {
+    "uptime": "可用率:"
+  },
+  "status": {
+    "available": "可用",
+    "degraded": "波动",
+    "unavailable": "不可用",
+    "missing": "无数据"
+  },
+  "subStatus": {
+    "slow_latency": "响应慢",
+    "rate_limit": "限流",
+    "server_error": "服务器错误",
+    "client_error": "客户端错误",
+    "auth_error": "认证失败",
+    "invalid_request": "请求参数错误",
+    "network_error": "连接失败",
+    "content_mismatch": "内容校验失败"
+  },
+  "tooltip": {
+    "title": "数据详情",
+    "uptime": "可用率:",
+    "latency": "延迟:",
+    "count": "次",
+    "degradedTitle": "🟡 波动细分",
+    "unavailableTitle": "🔴 不可用细分"
+  },
+  "footer": {
+    "disclaimer": {
+      "title": "免责声明",
+      "dataReference": {
+        "title": "数据仅供参考",
+        "text": "受网络环境影响，不代表服务商绝对质量"
+      },
+      "neutralMaintenance": {
+        "title": "中立维护",
+        "text": "本项目个人维护，保持中立，无利益相关"
+      },
+      "monitoringScope": {
+        "title": "监测范围",
+        "text": "连通性 + 延迟 + 内容校验，数据仅供参考"
+      }
+    },
+    "issuesBtn": "问题反馈",
+    "openSourceLabel": "开源项目，欢迎贡献"
+  },
+  "accessibility": {
+    "uptimeBlock": "可用率 {{uptime}}%",
+    "noDataBlock": "无数据",
+    "changeLanguage": "切换语言"
+  }
+}

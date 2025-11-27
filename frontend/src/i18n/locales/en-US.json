@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "title": "RelayPulse - Availability monitoring for LLM relay services",
+    "description": "RelayPulse - Monitor availability, latency, and sponsored routes of LLM relay services worldwide in real time, helping developers quickly evaluate provider quality and discover the most stable API providers. Supports connectivity checks for mainstream models such as Claude and GPT."
+  },
+  "common": {
+    "loading": "Syncing data nodes...",
+    "error": "Failed to load: {{message}}",
+    "noData": "No service nodes match the current filters",
+    "refresh": "Refresh data",
+    "close": "Close",
+    "apply": "Apply filters",
+    "clear": "Clear all filters",
+    "sponsor": "Sponsor",
+    "channel": "Channel",
+    "latency": "Latency",
+    "lastCheck": "Last check",
+    "uptime": "Uptime",
+    "now": "Now",
+    "unknownProvider": "Unnamed provider"
+  },
+  "header": {
+    "tagline": "Real-time availability matrix for API relay services",
+    "recommendBtn": "Recommend a provider",
+    "stats": {
+      "healthy": "Operational",
+      "issues": "Issues detected"
+    }
+  },
+  "controls": {
+    "filters": {
+      "category": "All categories",
+      "categoryLabel": "Service category",
+      "provider": "All providers",
+      "service": "All services",
+      "channel": "All channels"
+    },
+    "categories": {
+      "charity": "Charity",
+      "promoted": "Promoted"
+    },
+    "services": {
+      "cc": "Claude Code (cc)",
+      "cx": "Codex (cx)"
+    },
+    "timeRanges": {
+      "24h": "Last 24 hours",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days"
+    },
+    "views": {
+      "table": "Table view",
+      "card": "Card view",
+      "switchToTable": "Switch to table view",
+      "switchToCard": "Switch to card view"
+    },
+    "mobile": {
+      "filterBtn": "Filter",
+      "filterTitle": "Filters",
+      "closeFilter": "Close filters"
+    },
+    "sortBy": "Sort by:"
+  },
+  "table": {
+    "headers": {
+      "provider": "Provider",
+      "sponsor": "Sponsor",
+      "service": "Service",
+      "channel": "Channel",
+      "status": "Current status",
+      "uptime": "Uptime",
+      "lastCheck": "Last check",
+      "trend": "Quality trend"
+    },
+    "sorting": {
+      "provider": "Provider",
+      "uptime": "Uptime",
+      "status": "Current status",
+      "service": "Service type"
+    },
+    "categoryLabels": {
+      "promoted": "Promoted",
+      "charity": "Charity"
+    },
+    "categoryShort": {
+      "promoted": "P",
+      "charity": "C"
+    },
+    "expandDetails": "View details",
+    "collapseDetails": "Hide details",
+    "heatmapHint": "Click a cell for details (aggregated {{from}} → {{to}} data points)",
+    "timeLabels": {
+      "24h": "24h",
+      "days": "{{count}}d"
+    }
+  },
+  "card": {
+    "uptime": "Uptime:"
+  },
+  "status": {
+    "available": "Available",
+    "degraded": "Degraded",
+    "unavailable": "Unavailable",
+    "missing": "No data"
+  },
+  "subStatus": {
+    "slow_latency": "Slow response",
+    "rate_limit": "Rate limit",
+    "server_error": "Server error",
+    "client_error": "Client error",
+    "auth_error": "Authentication failed",
+    "invalid_request": "Invalid request parameters",
+    "network_error": "Network error",
+    "content_mismatch": "Content validation failed"
+  },
+  "tooltip": {
+    "title": "Data details",
+    "uptime": "Uptime:",
+    "latency": "Latency:",
+    "count": "times",
+    "degradedTitle": "🟡 Degraded breakdown",
+    "unavailableTitle": "🔴 Unavailable breakdown"
+  },
+  "footer": {
+    "disclaimer": {
+      "title": "Disclaimer",
+      "dataReference": {
+        "title": "Data for reference only",
+        "text": "Affected by network conditions; does not represent providers' absolute quality"
+      },
+      "neutralMaintenance": {
+        "title": "Neutral maintenance",
+        "text": "This project is maintained personally, remains neutral, and has no vested interests"
+      },
+      "monitoringScope": {
+        "title": "Monitoring scope",
+        "text": "Connectivity + latency + content validation; data for reference only"
+      }
+    },
+    "issuesBtn": "Report an issue",
+    "openSourceLabel": "Open source project, contributions welcome"
+  },
+  "accessibility": {
+    "uptimeBlock": "Uptime {{uptime}}%",
+    "noDataBlock": "No data",
+    "changeLanguage": "Change language"
+  }
+}

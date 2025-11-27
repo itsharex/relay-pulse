@@ -1,29 +1,31 @@
 import { useState } from 'react';
 import { Activity, Shield, AlertTriangle, Github, Tag, ChevronDown, ChevronUp, Bug } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useVersionInfo } from '../hooks/useVersionInfo';
 import { FEEDBACK_URLS } from '../constants';
 
-const notices = [
-  {
-    icon: Activity,
-    title: '数据仅供参考',
-    text: '受网络环境影响，不代表服务商绝对质量',
-  },
-  {
-    icon: Shield,
-    title: '中立维护',
-    text: '本项目个人维护，保持中立，无利益相关',
-  },
-  {
-    icon: AlertTriangle,
-    title: '监测范围',
-    text: '连通性 + 延迟 + 内容校验，数据仅供参考',
-  },
-];
-
 export function Footer() {
+  const { t } = useTranslation();
   const { versionInfo } = useVersionInfo();
   const [expanded, setExpanded] = useState(false);
+
+  const notices = [
+    {
+      icon: Activity,
+      title: t('footer.disclaimer.dataReference.title'),
+      text: t('footer.disclaimer.dataReference.text'),
+    },
+    {
+      icon: Shield,
+      title: t('footer.disclaimer.neutralMaintenance.title'),
+      text: t('footer.disclaimer.neutralMaintenance.text'),
+    },
+    {
+      icon: AlertTriangle,
+      title: t('footer.disclaimer.monitoringScope.title'),
+      text: t('footer.disclaimer.monitoringScope.text'),
+    },
+  ];
 
   return (
     <footer className="mt-6 sm:mt-10 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 text-slate-400">
@@ -32,10 +34,10 @@ export function Footer() {
         onClick={() => setExpanded(!expanded)}
         className="sm:hidden w-full flex items-center justify-between text-sm font-semibold text-slate-200 mb-2"
       >
-        <span>免责声明</span>
+        <span>{t('footer.disclaimer.title')}</span>
         {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
-      <div className="hidden sm:block text-sm font-semibold text-slate-200 mb-3">免责声明</div>
+      <div className="hidden sm:block text-sm font-semibold text-slate-200 mb-3">{t('footer.disclaimer.title')}</div>
 
       {/* 免责声明内容 - 移动端折叠 */}
       <div className={`${expanded ? 'block' : 'hidden'} sm:block`}>
@@ -77,10 +79,10 @@ export function Footer() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-rose-300 hover:border-rose-500/30 transition min-h-[36px]"
           >
             <Bug size={14} />
-            <span>问题反馈</span>
+            <span>{t('footer.issuesBtn')}</span>
           </a>
           <span className="hidden sm:inline text-slate-600">·</span>
-          <span className="text-slate-500 text-[11px] sm:text-xs">开源项目，欢迎贡献</span>
+          <span className="text-slate-500 text-[11px] sm:text-xs">{t('footer.openSourceLabel')}</span>
         </div>
         {versionInfo && (
           <>

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Server } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { Header } from './components/Header';
 import { Controls } from './components/Controls';
 import { StatusTable } from './components/StatusTable';
@@ -11,6 +13,7 @@ import { trackPeriodChange, trackServiceFilter, trackEvent } from './utils/analy
 import type { ViewMode, SortConfig, TooltipState, ProcessedMonitorData } from './types';
 
 function App() {
+  const { t, i18n } = useTranslation();
   const [filterService, setFilterService] = useState('all');
   const [filterProvider, setFilterProvider] = useState('all');
   const [filterChannel, setFilterChannel] = useState('all');
@@ -97,89 +100,98 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500 selection:text-white overflow-x-hidden">
-      {/* 全局 Tooltip */}
-      <Tooltip tooltip={tooltip} onClose={handleBlockLeave} />
+    <>
+      {/* 动态更新 HTML meta 标签 */}
+      <Helmet>
+        <html lang={i18n.language} />
+        <title>{t('meta.title')}</title>
+        <meta name="description" content={t('meta.description')} />
+      </Helmet>
 
-      {/* 背景装饰 */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[120px]" />
+      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500 selection:text-white overflow-x-hidden">
+        {/* 全局 Tooltip */}
+        <Tooltip tooltip={tooltip} onClose={handleBlockLeave} />
+
+        {/* 背景装饰 */}
+        <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+          <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[120px]" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
+          {/* 头部 */}
+          <Header stats={stats} />
+
+          {/* 控制栏 */}
+          <Controls
+            filterProvider={filterProvider}
+            filterService={filterService}
+            filterChannel={filterChannel}
+            filterCategory={filterCategory}
+            timeRange={timeRange}
+            viewMode={viewMode}
+            loading={loading}
+            channels={channels}
+            providers={providers}
+            onProviderChange={setFilterProvider}
+            onServiceChange={setFilterService}
+            onChannelChange={setFilterChannel}
+            onCategoryChange={setFilterCategory}
+            onTimeRangeChange={setTimeRange}
+            onViewModeChange={setViewMode}
+            onRefresh={handleRefresh}
+          />
+
+          {/* 内容区域 */}
+          {error ? (
+            <div className="flex flex-col items-center justify-center py-20 text-rose-400">
+              <Server size={64} className="mb-4 opacity-20" />
+              <p className="text-lg">{t('common.error', { message: error })}</p>
+            </div>
+          ) : loading && data.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
+              <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+              <p className="animate-pulse">{t('common.loading')}</p>
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-600">
+              <Server size={64} className="mb-4 opacity-20" />
+              <p className="text-lg">{t('common.noData')}</p>
+            </div>
+          ) : (
+            <>
+              {viewMode === 'table' && (
+                <StatusTable
+                  data={data}
+                  sortConfig={sortConfig}
+                  timeRange={timeRange}
+                  onSort={handleSort}
+                  onBlockHover={handleBlockHover}
+                  onBlockLeave={handleBlockLeave}
+                />
+              )}
+
+              {viewMode === 'grid' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {data.map((item) => (
+                    <StatusCard
+                      key={item.id}
+                      item={item}
+                      timeRange={timeRange}
+                      onBlockHover={handleBlockHover}
+                      onBlockLeave={handleBlockLeave}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 免责声明 */}
+          <Footer />
+        </div>
       </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
-        {/* 头部 */}
-        <Header stats={stats} />
-
-        {/* 控制栏 */}
-        <Controls
-          filterProvider={filterProvider}
-          filterService={filterService}
-          filterChannel={filterChannel}
-          filterCategory={filterCategory}
-          timeRange={timeRange}
-          viewMode={viewMode}
-          loading={loading}
-          channels={channels}
-          providers={providers}
-          onProviderChange={setFilterProvider}
-          onServiceChange={setFilterService}
-          onChannelChange={setFilterChannel}
-          onCategoryChange={setFilterCategory}
-          onTimeRangeChange={setTimeRange}
-          onViewModeChange={setViewMode}
-          onRefresh={handleRefresh}
-        />
-
-        {/* 内容区域 */}
-        {error ? (
-          <div className="flex flex-col items-center justify-center py-20 text-rose-400">
-            <Server size={64} className="mb-4 opacity-20" />
-            <p className="text-lg">加载失败: {error}</p>
-          </div>
-        ) : loading && data.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
-            <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
-            <p className="animate-pulse">正在同步数据节点...</p>
-          </div>
-        ) : data.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-600">
-            <Server size={64} className="mb-4 opacity-20" />
-            <p className="text-lg">未找到符合条件的服务节点</p>
-          </div>
-        ) : (
-          <>
-            {viewMode === 'table' && (
-              <StatusTable
-                data={data}
-                sortConfig={sortConfig}
-                timeRange={timeRange}
-                onSort={handleSort}
-                onBlockHover={handleBlockHover}
-                onBlockLeave={handleBlockLeave}
-              />
-            )}
-
-            {viewMode === 'grid' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {data.map((item) => (
-                  <StatusCard
-                    key={item.id}
-                    item={item}
-                    timeRange={timeRange}
-                    onBlockHover={handleBlockHover}
-                    onBlockLeave={handleBlockLeave}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* 免责声明 */}
-        <Footer />
-      </div>
-    </div>
+    </>
   );
 }
 

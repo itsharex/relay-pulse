@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "title": "RelayPulse - LLM中継サービスの可用性監視",
+    "description": "RelayPulse - 世界中のLLM中継サービスの可用性・レイテンシ・スポンサー経路をリアルタイムで監視し、開発者がプロバイダの品質を素早く評価し、最も安定したAPIプロバイダを見つけられるよう支援します。Claude や GPT など主要モデルの接続性チェックに対応しています。"
+  },
+  "common": {
+    "loading": "データノードを同期しています...",
+    "error": "読み込みに失敗しました: {{message}}",
+    "noData": "条件に一致するサービスノードが見つかりません",
+    "refresh": "データを更新",
+    "close": "閉じる",
+    "apply": "フィルターを適用",
+    "clear": "すべてのフィルターをクリア",
+    "sponsor": "スポンサー",
+    "channel": "チャネル",
+    "latency": "レイテンシ",
+    "lastCheck": "最終チェック",
+    "uptime": "稼働率",
+    "now": "今",
+    "unknownProvider": "名前のないプロバイダ"
+  },
+  "header": {
+    "tagline": "API中継サービスの可用性マトリクスをリアルタイム監視",
+    "recommendBtn": "プロバイダを推薦する",
+    "stats": {
+      "healthy": "正常稼働",
+      "issues": "異常アラート"
+    }
+  },
+  "controls": {
+    "filters": {
+      "category": "すべてのカテゴリ",
+      "categoryLabel": "サービスカテゴリ",
+      "provider": "すべてのプロバイダ",
+      "service": "すべてのサービス",
+      "channel": "すべてのチャネル"
+    },
+    "categories": {
+      "charity": "チャリティサイト",
+      "promoted": "プロモーションサイト"
+    },
+    "services": {
+      "cc": "Claude Code (cc)",
+      "cx": "Codex (cx)"
+    },
+    "timeRanges": {
+      "24h": "直近24時間",
+      "7d": "直近7日間",
+      "30d": "直近30日間"
+    },
+    "views": {
+      "table": "テーブルビュー",
+      "card": "カードビュー",
+      "switchToTable": "テーブルビューに切り替え",
+      "switchToCard": "カードビューに切り替え"
+    },
+    "mobile": {
+      "filterBtn": "フィルター",
+      "filterTitle": "フィルター条件",
+      "closeFilter": "フィルターを閉じる"
+    },
+    "sortBy": "並び替え:"
+  },
+  "table": {
+    "headers": {
+      "provider": "プロバイダ",
+      "sponsor": "スポンサー",
+      "service": "サービス",
+      "channel": "チャネル",
+      "status": "現在の状態",
+      "uptime": "稼働率",
+      "lastCheck": "最終チェック",
+      "trend": "品質トレンド"
+    },
+    "sorting": {
+      "provider": "プロバイダ",
+      "uptime": "稼働率",
+      "status": "現在の状態",
+      "service": "サービス種別"
+    },
+    "categoryLabels": {
+      "promoted": "プロモーションサイト",
+      "charity": "チャリティサイト"
+    },
+    "categoryShort": {
+      "promoted": "推",
+      "charity": "慈"
+    },
+    "expandDetails": "詳細を表示",
+    "collapseDetails": "詳細を閉じる",
+    "heatmapHint": "色のブロックをクリックすると詳細情報を表示します（{{from}} → {{to}} 個のデータポイントを集約）",
+    "timeLabels": {
+      "24h": "24h",
+      "days": "{{count}}d"
+    }
+  },
+  "card": {
+    "uptime": "稼働率:"
+  },
+  "status": {
+    "available": "利用可能",
+    "degraded": "不安定",
+    "unavailable": "利用不可",
+    "missing": "データなし"
+  },
+  "subStatus": {
+    "slow_latency": "応答が遅い",
+    "rate_limit": "レート制限",
+    "server_error": "サーバーエラー",
+    "client_error": "クライアントエラー",
+    "auth_error": "認証に失敗しました",
+    "invalid_request": "リクエストパラメータのエラー",
+    "network_error": "接続に失敗しました",
+    "content_mismatch": "内容検証に失敗しました"
+  },
+  "tooltip": {
+    "title": "データの詳細",
+    "uptime": "稼働率:",
+    "latency": "レイテンシ:",
+    "count": "回",
+    "degradedTitle": "🟡 不安定状態の内訳",
+    "unavailableTitle": "🔴 利用不可状態の内訳"
+  },
+  "footer": {
+    "disclaimer": {
+      "title": "免責事項",
+      "dataReference": {
+        "title": "データは参考値です",
+        "text": "ネットワーク環境の影響を受けるため、プロバイダの絶対的な品質を保証するものではありません"
+      },
+      "neutralMaintenance": {
+        "title": "中立的な運用",
+        "text": "本プロジェクトは個人により運用されており、中立性を維持し、利害関係はありません"
+      },
+      "monitoringScope": {
+        "title": "監視範囲",
+        "text": "接続性・レイテンシ・内容検証を監視しており、データはあくまで参考値です"
+      }
+    },
+    "issuesBtn": "問題を報告",
+    "openSourceLabel": "オープンソースプロジェクトです。ぜひコントリビュートしてください"
+  },
+  "accessibility": {
+    "uptimeBlock": "稼働率 {{uptime}}%",
+    "noDataBlock": "データなし",
+    "changeLanguage": "言語を切り替え"
+  }
+}

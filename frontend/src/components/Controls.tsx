@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Filter, RefreshCw, LayoutGrid, List, X } from 'lucide-react';
-import { TIME_RANGES } from '../constants';
+import { useTranslation } from 'react-i18next';
+import { getTimeRanges } from '../constants';
 import type { ViewMode, ProviderOption } from '../types';
 
 interface ControlsProps {
@@ -40,6 +41,7 @@ export function Controls({
   onViewModeChange,
   onRefresh,
 }: ControlsProps) {
+  const { t } = useTranslation();
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   // 统计激活的筛选器数量
@@ -60,9 +62,9 @@ export function Controls({
         onChange={(e) => onCategoryChange(e.target.value)}
         className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750 w-full sm:w-auto"
       >
-        <option value="all">所有分类</option>
-        <option value="public">公益站</option>
-        <option value="commercial">推广站</option>
+        <option value="all">{t('controls.filters.category')}</option>
+        <option value="public">{t('controls.categories.charity')}</option>
+        <option value="commercial">{t('controls.categories.promoted')}</option>
       </select>
 
       <select
@@ -72,7 +74,7 @@ export function Controls({
         onChange={(e) => onProviderChange(e.target.value)}
         className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750 w-full sm:w-auto"
       >
-        <option value="all">所有服务商</option>
+        <option value="all">{t('controls.filters.provider')}</option>
         {providers.map(({ value, label }) => (
           <option key={value} value={value}>
             {label}
@@ -87,9 +89,9 @@ export function Controls({
         onChange={(e) => onServiceChange(e.target.value)}
         className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750 w-full sm:w-auto"
       >
-        <option value="all">所有服务</option>
-        <option value="cc">Claude Code (cc)</option>
-        <option value="cx">Codex (cx)</option>
+        <option value="all">{t('controls.filters.service')}</option>
+        <option value="cc">{t('controls.services.cc')}</option>
+        <option value="cx">{t('controls.services.cx')}</option>
       </select>
 
       <select
@@ -99,7 +101,7 @@ export function Controls({
         onChange={(e) => onChannelChange(e.target.value)}
         className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750 w-full sm:w-auto"
       >
-        <option value="all">所有通道</option>
+        <option value="all">{t('controls.filters.channel')}</option>
         {channels.map((channel) => (
           <option key={channel} value={channel}>
             {channel}
@@ -120,7 +122,7 @@ export function Controls({
             className="sm:hidden flex items-center gap-2 px-3 py-2 bg-slate-800 text-slate-200 rounded-lg border border-slate-700 hover:bg-slate-750 transition-colors"
           >
             <Filter size={16} />
-            <span className="text-sm font-medium">筛选</span>
+            <span className="text-sm font-medium">{t('controls.mobile.filterBtn')}</span>
             {activeFiltersCount > 0 && (
               <span className="px-1.5 py-0.5 bg-cyan-500 text-white text-xs rounded-full">
                 {activeFiltersCount}
@@ -147,8 +149,8 @@ export function Controls({
                   ? 'bg-slate-700 text-cyan-400 shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="表格视图"
-              aria-label="切换到表格视图"
+              title={t('controls.views.table')}
+              aria-label={t('controls.views.switchToTable')}
             >
               <List size={18} />
             </button>
@@ -159,8 +161,8 @@ export function Controls({
                   ? 'bg-slate-700 text-cyan-400 shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="卡片视图"
-              aria-label="切换到卡片视图"
+              title={t('controls.views.card')}
+              aria-label={t('controls.views.switchToCard')}
             >
               <LayoutGrid size={18} />
             </button>
@@ -170,8 +172,8 @@ export function Controls({
           <button
             onClick={onRefresh}
             className="ml-auto p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors border border-cyan-500/20 group min-w-[44px] min-h-[44px] flex items-center justify-center"
-            title="刷新数据"
-            aria-label="刷新数据"
+            title={t('common.refresh')}
+            aria-label={t('common.refresh')}
           >
             <RefreshCw
               size={18}
@@ -182,7 +184,7 @@ export function Controls({
 
         {/* 时间范围选择（添加横向滚动） */}
         <div className="bg-slate-900/40 p-2 rounded-2xl border border-slate-800/50 backdrop-blur-md flex items-center gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-          {TIME_RANGES.map((range) => (
+          {getTimeRanges(t).map((range) => (
             <button
               key={range.id}
               onClick={() => onTimeRangeChange(range.id)}
@@ -212,7 +214,7 @@ export function Controls({
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
                 <Filter size={20} className="text-cyan-400" />
-                <h3 className="text-lg font-semibold text-slate-100">筛选条件</h3>
+                <h3 className="text-lg font-semibold text-slate-100">{t('controls.mobile.filterTitle')}</h3>
                 {activeFiltersCount > 0 && (
                   <span className="px-2 py-0.5 bg-cyan-500 text-white text-xs rounded-full">
                     {activeFiltersCount}
@@ -222,7 +224,7 @@ export function Controls({
               <button
                 onClick={() => setShowFilterDrawer(false)}
                 className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
-                aria-label="关闭筛选"
+                aria-label={t('controls.mobile.closeFilter')}
               >
                 <X size={20} />
               </button>
@@ -232,7 +234,7 @@ export function Controls({
             <div className="flex flex-col gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">
-                  服务分类
+                  {t('controls.filters.categoryLabel')}
                 </label>
                 <FilterSelects />
               </div>
@@ -248,7 +250,7 @@ export function Controls({
                   }}
                   className="w-full py-3 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-750 transition-colors font-medium"
                 >
-                  清空所有筛选
+                  {t('common.clear')}
                 </button>
               )}
 
@@ -257,7 +259,7 @@ export function Controls({
                 onClick={() => setShowFilterDrawer(false)}
                 className="w-full py-3 bg-gradient-to-br from-cyan-500 to-blue-600 text-white rounded-lg font-medium shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all"
               >
-                应用筛选
+                {t('common.apply')}
               </button>
             </div>
           </div>

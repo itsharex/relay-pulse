@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import i18n from '../i18n';
 import type {
   ApiResponse,
   ProcessedMonitorData,
@@ -31,7 +32,7 @@ function canonicalize(value?: string): string {
 // Provider 显示标签格式化（保留原始大小写，首字母大写）
 function formatProviderLabel(value?: string): string {
   const trimmed = value?.trim();
-  if (!trimmed) return '未命名服务商';
+  if (!trimmed) return i18n.t('common.unknownProvider');
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 

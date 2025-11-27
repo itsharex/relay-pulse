@@ -18,5 +18,6 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
+    // Vite 的开发服务器默认支持 SPA 路由回退
   }
 })

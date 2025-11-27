@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { Activity, Clock, Zap, Shield } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
 import { ExternalLink } from './ExternalLink';
-import { STATUS } from '../constants';
+import { getStatusConfig, getTimeRanges } from '../constants';
 import { availabilityToColor } from '../utils/color';
 import { aggregateHeatmap } from '../utils/heatmapAggregator';
 import type { ProcessedMonitorData } from '../types';
@@ -18,11 +19,16 @@ interface StatusCardProps {
 }
 
 export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: StatusCardProps) {
+  const { t, i18n } = useTranslation();
+
   // 聚合热力图数据（移动端）
   const aggregatedHistory = useMemo(
     () => aggregateHeatmap(item.history, 50),
     [item.history]
   );
+
+  const STATUS = getStatusConfig(t);
+  const currentTimeRange = getTimeRanges(t).find((r) => r.id === timeRange);
 
   return (
     <div className="group relative bg-slate-900/60 border border-slate-800 hover:border-cyan-500/30 rounded-2xl p-4 sm:p-6 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.1)] backdrop-blur-sm overflow-hidden">
@@ -58,7 +64,7 @@ export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: Stat
             <div className="flex items-center gap-2 mt-1 text-xs font-mono">
               <Activity size={12} className="text-slate-400" />
               <span style={{ color: availabilityToColor(item.uptime) }}>
-                可用率: {item.uptime}%
+                {t('card.uptime')} {item.uptime}%
               </span>
             </div>
           </div>
@@ -78,7 +84,7 @@ export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: Stat
           {item.lastCheckTimestamp && (
             <div className="text-[10px] text-slate-500 font-mono flex flex-col items-start sm:items-end gap-0.5">
               <span className="whitespace-nowrap">
-                {new Date(item.lastCheckTimestamp * 1000).toLocaleString('zh-CN', {
+                {new Date(item.lastCheckTimestamp * 1000).toLocaleString(i18n.language, {
                   month: '2-digit',
                   day: '2-digit',
                   hour: '2-digit',
@@ -97,9 +103,9 @@ export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: Stat
       <div>
         <div className="flex justify-between text-xs text-slate-500 mb-2">
           <span className="flex items-center gap-1">
-            <Clock size={12} /> {timeRange === '24h' ? '24h' : `${parseInt(timeRange)}d`}
+            <Clock size={12} /> {currentTimeRange?.label || timeRange}
           </span>
-          <span>Now</span>
+          <span>{t('common.now')}</span>
         </div>
         <div className="flex gap-[3px] h-10 w-full">
           {aggregatedHistory.map((point, idx) => (
@@ -116,7 +122,7 @@ export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: Stat
         {/* 移动端提示：点击查看详情 */}
         {aggregatedHistory.length < item.history.length && (
           <div className="mt-2 text-[10px] text-slate-600 text-center sm:hidden">
-            点击色块查看详细信息（已聚合 {item.history.length} → {aggregatedHistory.length} 个数据点）
+            {t('table.heatmapHint', { from: item.history.length, to: aggregatedHistory.length })}
           </div>
         )}
       </div>
