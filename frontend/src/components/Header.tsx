@@ -116,14 +116,14 @@ export function Header({ stats }: HeaderProps) {
               <button
                 key={lang}
                 onClick={() => handleLanguageChange(lang)}
-                className={`w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-700/50 transition-colors ${
+                className={`w-full px-4 py-2.5 text-left flex items-center gap-2.5 hover:bg-slate-700/50 transition-colors ${
                   i18n.language === lang ? 'bg-slate-700/30 text-cyan-400' : 'text-slate-300'
                 }`}
               >
-                <span className="text-lg">{LANGUAGE_NAMES[lang].flag}</span>
-                <span className="text-sm font-medium">{getLanguageShortLabel(lang)}</span>
+                <span className="text-base leading-none flex-shrink-0">{LANGUAGE_NAMES[lang].flag}</span>
+                <span className="text-sm font-medium leading-none">{getLanguageShortLabel(lang)}</span>
                 {i18n.language === lang && (
-                  <svg className="w-4 h-4 ml-auto text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-3.5 h-3.5 ml-auto flex-shrink-0 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 )}

@@ -17,7 +17,7 @@ fi
 if [ ! -d "frontend/dist" ] || [ "$1" = "--rebuild-frontend" ]; then
     echo "📦 构建前端..."
     cd frontend
-    npm install
+    npm install --legacy-peer-deps
     npm run build
     cd ..
     echo "✅ 前端构建完成"
