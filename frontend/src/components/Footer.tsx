@@ -28,7 +28,7 @@ export function Footer() {
   ];
 
   return (
-    <footer className="mt-6 sm:mt-10 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 text-slate-400">
+    <footer className="mt-4 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 text-slate-400">
       {/* 免责声明标题 - 移动端可折叠 */}
       <button
         onClick={() => setExpanded(!expanded)}
