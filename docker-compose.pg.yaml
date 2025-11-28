@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: relaypulse-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-monitor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-relaypulse}
+    ports:
+      - "5432:5432"
+    volumes:
+      - relaypulse-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-monitor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - relay-pulse-network
+
+  # RelayPulse 监控服务
+  monitor:
+    image: ghcr.io/prehisle/relay-pulse:latest
+    container_name: relaypulse-monitor-pg
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      # 如果需要自定义 data 文件，取消下面的注释
+      # - ./data:/app/data:ro
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      - GIN_MODE=${GIN_MODE:-release}
+      - MONITOR_STORAGE_TYPE=${MONITOR_STORAGE_TYPE:-postgres}
+      - MONITOR_POSTGRES_HOST=${MONITOR_POSTGRES_HOST:-postgres}
+      - MONITOR_POSTGRES_PORT=${MONITOR_POSTGRES_PORT:-5432}
+      - MONITOR_POSTGRES_USER=${MONITOR_POSTGRES_USER}
+      - MONITOR_POSTGRES_PASSWORD=${MONITOR_POSTGRES_PASSWORD}
+      - MONITOR_POSTGRES_DATABASE=${MONITOR_POSTGRES_DATABASE}
+      - MONITOR_POSTGRES_SSLMODE=${MONITOR_POSTGRES_SSLMODE:-disable}
+      - MONITOR_POSTGRES_MAX_OPEN_CONNS=${MONITOR_POSTGRES_MAX_OPEN_CONNS:-25}
+      - MONITOR_POSTGRES_MAX_IDLE_CONNS=${MONITOR_POSTGRES_MAX_IDLE_CONNS:-5}
+      - MONITOR_POSTGRES_CONN_MAX_LIFETIME=${MONITOR_POSTGRES_CONN_MAX_LIFETIME:-1h}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - relay-pulse-network
+
+volumes:
+  relaypulse-postgres-data:
+    driver: local
+
+networks:
+  relay-pulse-network:
+    driver: bridge
