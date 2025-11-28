@@ -2,7 +2,8 @@ import { Activity, CheckCircle, AlertTriangle, Sparkles, Globe } from 'lucide-re
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FEEDBACK_URLS } from '../constants';
-import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES, LANGUAGE_PATH_MAP, isSupportedLanguage, type SupportedLanguage } from '../i18n';
+import { SUPPORTED_LANGUAGES, LANGUAGE_PATH_MAP, isSupportedLanguage, type SupportedLanguage } from '../i18n';
+import { FlagIcon } from './FlagIcon';
 
 interface HeaderProps {
   stats: {
@@ -120,7 +121,7 @@ export function Header({ stats }: HeaderProps) {
                   i18n.language === lang ? 'bg-slate-700/30 text-cyan-400' : 'text-slate-300'
                 }`}
               >
-                <span className="text-base leading-none flex-shrink-0">{LANGUAGE_NAMES[lang].flag}</span>
+                <FlagIcon language={lang} className="w-5 h-auto flex-shrink-0" />
                 <span className="text-sm font-medium leading-none">{getLanguageShortLabel(lang)}</span>
                 {i18n.language === lang && (
                   <svg className="w-3.5 h-3.5 ml-auto flex-shrink-0 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">

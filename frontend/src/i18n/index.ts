@@ -7,12 +7,12 @@ import enUS from './locales/en-US.json';
 import ruRU from './locales/ru-RU.json';
 import jaJP from './locales/ja-JP.json';
 
-// 语言显示名称
-export const LANGUAGE_NAMES: Record<string, { native: string; english: string; flag: string }> = {
-  'zh-CN': { native: '中文', english: 'Chinese', flag: '🇨🇳' },
-  'en-US': { native: 'English', english: 'English', flag: '🇺🇸' },
-  'ru-RU': { native: 'Русский', english: 'Russian', flag: '🇷🇺' },
-  'ja-JP': { native: '日本語', english: 'Japanese', flag: '🇯🇵' },
+// 语言显示名称（保留用于未来扩展，如显示完整语言名称）
+export const LANGUAGE_NAMES: Record<string, { native: string; english: string }> = {
+  'zh-CN': { native: '中文', english: 'Chinese' },
+  'en-US': { native: 'English', english: 'English' },
+  'ru-RU': { native: 'Русский', english: 'Russian' },
+  'ja-JP': { native: '日本語', english: 'Japanese' },
 };
 
 // 支持的语言列表
