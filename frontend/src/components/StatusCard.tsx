@@ -64,7 +64,7 @@ export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: Stat
             <div className="flex items-center gap-2 mt-1 text-xs font-mono">
               <Activity size={12} className="text-slate-400" />
               <span style={{ color: availabilityToColor(item.uptime) }}>
-                {t('card.uptime')} {item.uptime}%
+                {t('card.uptime')} {item.uptime >= 0 ? `${item.uptime}%` : '--'}
               </span>
             </div>
           </div>

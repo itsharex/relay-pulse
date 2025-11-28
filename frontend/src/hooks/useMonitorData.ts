@@ -135,15 +135,16 @@ export function useMonitorData({
               ? statusMap[item.current_status.status] || 'UNAVAILABLE'
               : 'UNAVAILABLE';
 
-            // 计算可用率（取每个块的 availability 平均值）
-            // 负数（无数据）当作100%可用，避免刚开始监控时可用率过低
-            const uptime = history.length > 0
+            // 计算可用率：仅统计有数据的时间块
+            // - 过滤掉 availability < 0 的无数据时间段
+            // - 若所有时间块均无数据，返回 -1 由 UI 层展示为 "--"
+            const validAvailabilityPoints = history.filter(point => point.availability >= 0);
+            const uptime = validAvailabilityPoints.length > 0
               ? parseFloat((
-                  history.reduce((acc, point) => {
-                    return acc + (point.availability < 0 ? 100 : point.availability);
-                  }, 0) / history.length
+                  validAvailabilityPoints.reduce((acc, point) => acc + point.availability, 0)
+                  / validAvailabilityPoints.length
                 ).toFixed(2))
-              : 0;
+              : -1;
 
             // 标准化 provider 名称
             const providerKey = canonicalize(item.provider);
@@ -244,6 +245,23 @@ export function useMonitorData({
         if (sortConfig.key === 'currentStatus') {
           aValue = STATUS[a.currentStatus].weight;
           bValue = STATUS[b.currentStatus].weight;
+        }
+
+        // uptime 特殊排序规则：
+        // - uptime < 0 表示无数据，始终排在最后
+        // - 升序：无数据映射为 +Infinity
+        // - 降序：无数据映射为 -Infinity
+        if (sortConfig.key === 'uptime') {
+          const normalizeUptime = (value: number): number => {
+            if (value < 0) {
+              return sortConfig.direction === 'asc'
+                ? Number.POSITIVE_INFINITY
+                : Number.NEGATIVE_INFINITY;
+            }
+            return value;
+          };
+          aValue = normalizeUptime(a.uptime);
+          bValue = normalizeUptime(b.uptime);
         }
 
         if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;

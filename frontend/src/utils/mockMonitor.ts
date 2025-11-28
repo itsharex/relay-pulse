@@ -98,15 +98,16 @@ export function fetchMockMonitorData(timeRangeId: string): Promise<ProcessedMoni
 
           const currentStatus = history[history.length - 1].status;
 
-          // 计算可用率（AVAILABLE 和 DEGRADED 都算成功，与后端逻辑一致）
-          const uptimeScore = history.reduce((acc, point) => {
-            if (point.status === 'AVAILABLE' || point.status === 'DEGRADED') return acc + 1;  // 100%
-            if (point.status === 'MISSING') return acc + 0.5;  // 50%
-            return acc;  // 0% (UNAVAILABLE)
-          }, 0);
-          const uptime = history.length > 0
-            ? parseFloat((uptimeScore / history.length * 100).toFixed(2))
-            : 0;
+          // 计算可用率：与真实逻辑保持一致
+          // - 仅统计 availability >= 0 的时间块
+          // - 若所有时间块均无数据，返回 -1
+          const validAvailabilityPoints = history.filter(point => point.availability >= 0);
+          const uptime = validAvailabilityPoints.length > 0
+            ? parseFloat((
+                validAvailabilityPoints.reduce((acc, point) => acc + point.availability, 0)
+                / validAvailabilityPoints.length
+              ).toFixed(2))
+            : -1;
 
           // 模拟通道名（按照 provider 分配）
           const channels = ['vip-channel', 'standard-channel', 'test-channel'];

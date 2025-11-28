@@ -100,7 +100,7 @@ function MobileListItem({
             className="text-sm font-mono font-bold"
             style={{ color: availabilityToColor(item.uptime) }}
           >
-            {item.uptime}%
+            {item.uptime >= 0 ? `${item.uptime}%` : '--'}
           </span>
         </div>
       </div>
@@ -383,7 +383,7 @@ export function StatusTable({
               </td>
               <td className="p-4 font-mono font-bold">
                 <span style={{ color: availabilityToColor(item.uptime) }}>
-                  {item.uptime}%
+                  {item.uptime >= 0 ? `${item.uptime}%` : '--'}
                 </span>
               </td>
               <td className="p-4">
