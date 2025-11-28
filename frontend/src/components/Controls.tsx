@@ -121,7 +121,7 @@ export function Controls({
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row gap-3 mb-8">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         {/* 筛选和视图控制 */}
         <div className="flex-1 flex flex-wrap gap-3 items-center bg-slate-900/40 p-3 rounded-2xl border border-slate-800/50 backdrop-blur-md">
           {/* 移动端：筛选按钮 */}
