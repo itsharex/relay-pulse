@@ -167,19 +167,16 @@ export default function ProviderPage() {
 
         {/* 主内容区域 - 移除 py-6 以减小与控制面板的间距 */}
         <main>
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-zinc-400">{t('common.loading')}</div>
-            </div>
-          )}
-
-          {error && (
+          {error ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-red-400">{t('common.error')}: {error}</div>
             </div>
-          )}
-
-          {!loading && !error && data.length > 0 && (
+          ) : loading && data.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
+              <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+              <p className="animate-pulse">{t('common.loading')}</p>
+            </div>
+          ) : (
             <>
               {viewMode === 'table' && (
                 <StatusTable
