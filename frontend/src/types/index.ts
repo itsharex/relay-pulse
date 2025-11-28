@@ -35,6 +35,7 @@ export interface CurrentStatus {
 
 export interface MonitorResult {
   provider: string;
+  provider_slug: string;               // URL slug（用于生成专属页面链接）
   provider_url?: string;               // 服务商官网链接
   service: string;
   category: 'commercial' | 'public';  // 分类：commercial（推广站）或 public（公益站）
@@ -75,6 +76,7 @@ export const STATUS_MAP: Record<number, StatusKey> = {
 export interface ProcessedMonitorData {
   id: string;
   providerId: string;
+  providerSlug: string;                // URL slug（用于生成专属页面链接）
   providerName: string;
   providerUrl?: string | null;         // 服务商官网链接
   serviceType: string;

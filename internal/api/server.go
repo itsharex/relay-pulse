@@ -63,10 +63,16 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 
 	// 安全头中间件
 	router.Use(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
 		// HSTS（强制 HTTPS，有效期 1 年）- Cloudflare 提供 HTTPS
 		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		// 防止点击劫持
-		c.Header("X-Frame-Options", "SAMEORIGIN")
+
+		// 防止点击劫持 - 对 /p/* 路径允许任意嵌入（iframe 友好）
+		if !strings.HasPrefix(path, "/p/") {
+			c.Header("X-Frame-Options", "SAMEORIGIN")
+		}
+
 		// 防止 MIME 类型嗅探
 		c.Header("X-Content-Type-Options", "nosniff")
 		// XSS 保护

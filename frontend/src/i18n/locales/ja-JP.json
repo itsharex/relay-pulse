@@ -140,6 +140,13 @@
     "issuesBtn": "問題を報告",
     "openSourceLabel": "オープンソースプロジェクトです。ぜひコントリビュートしてください"
   },
+  "provider": {
+    "pageTitle": "{{name}} - サービス監視",
+    "pageDescription": "{{name}} の LLM サービス可用性をリアルタイム監視",
+    "notFoundTitle": "プロバイダーが見つかりません",
+    "notFoundMessage": "プロバイダー \"{{slug}}\" は存在しないか、まだ監視対象に追加されていません",
+    "backToHome": "ホームに戻る"
+  },
   "accessibility": {
     "uptimeBlock": "稼働率 {{uptime}}%",
     "noDataBlock": "データなし",

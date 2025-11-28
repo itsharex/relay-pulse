@@ -12,9 +12,10 @@ import (
 
 // ServiceConfig 单个服务监控配置
 type ServiceConfig struct {
-	Provider    string            `yaml:"provider" json:"provider"`
-	ProviderURL string            `yaml:"provider_url" json:"provider_url"` // 服务商官网链接（可选）
-	Service     string            `yaml:"service" json:"service"`
+	Provider     string            `yaml:"provider" json:"provider"`
+	ProviderSlug string            `yaml:"provider_slug" json:"provider_slug"` // URL slug（可选，未配置时使用 provider 小写）
+	ProviderURL  string            `yaml:"provider_url" json:"provider_url"`    // 服务商官网链接（可选）
+	Service      string            `yaml:"service" json:"service"`
 	Category    string            `yaml:"category" json:"category"` // 分类：commercial（推广站）或 public（公益站）
 	Sponsor     string            `yaml:"sponsor" json:"sponsor"`   // 赞助者：提供 API Key 的个人或组织
 	SponsorURL  string            `yaml:"sponsor_url" json:"sponsor_url"` // 赞助者链接（可选）
@@ -243,7 +244,8 @@ func (c *AppConfig) Normalize() error {
 		}
 	}
 
-	// 将全局慢请求阈值下发到每个监控项，并标准化 category、URLs
+	// 将全局慢请求阈值下发到每个监控项，并标准化 category、URLs、provider_slug
+	slugSet := make(map[string]int) // slug -> monitor index (用于检测重复)
 	for i := range c.Monitors {
 		if c.Monitors[i].SlowLatencyDuration == 0 {
 			c.Monitors[i].SlowLatencyDuration = c.SlowLatencyDuration
@@ -254,6 +256,26 @@ func (c *AppConfig) Normalize() error {
 		// 规范化 URLs：去除首尾空格和末尾的 /
 		c.Monitors[i].ProviderURL = strings.TrimRight(strings.TrimSpace(c.Monitors[i].ProviderURL), "/")
 		c.Monitors[i].SponsorURL = strings.TrimRight(strings.TrimSpace(c.Monitors[i].SponsorURL), "/")
+
+		// provider_slug 验证和自动生成
+		slug := strings.TrimSpace(c.Monitors[i].ProviderSlug)
+		if slug == "" {
+			// 未配置时，自动生成: provider 转小写
+			slug = strings.ToLower(strings.TrimSpace(c.Monitors[i].Provider))
+		} else {
+			// 已配置时，验证格式: 仅允许小写字母、数字、连字符
+			if err := validateProviderSlug(slug); err != nil {
+				return fmt.Errorf("monitor[%d]: provider_slug '%s' 无效: %w", i, slug, err)
+			}
+		}
+		c.Monitors[i].ProviderSlug = slug
+
+		// 检测 slug 重复 (同一 slug 可用于不同 service，仅记录不报错)
+		if prevIdx, exists := slugSet[slug]; exists {
+			log.Printf("[Config] 注意: provider_slug '%s' 被多个监控项使用 (monitor[%d] 和 monitor[%d])", slug, prevIdx, i)
+		} else {
+			slugSet[slug] = i
+		}
 	}
 
 	return nil
@@ -427,6 +449,32 @@ func validateURL(rawURL, fieldName string) error {
 	// 非 HTTPS 警告
 	if scheme == "http" {
 		log.Printf("[Config] 警告: %s 使用了非加密的 http:// 协议: %s", fieldName, trimmed)
+	}
+
+	return nil
+}
+
+// validateProviderSlug 验证 provider_slug 格式
+// 规则：仅允许小写字母(a-z)、数字(0-9)、连字符(-)
+func validateProviderSlug(slug string) error {
+	if slug == "" {
+		return fmt.Errorf("slug 不能为空")
+	}
+
+	// 检查字符合法性
+	for i, c := range slug {
+		isLower := c >= 'a' && c <= 'z'
+		isDigit := c >= '0' && c <= '9'
+		isHyphen := c == '-'
+
+		if !isLower && !isDigit && !isHyphen {
+			return fmt.Errorf("包含非法字符 '%c' (位置 %d)，仅允许小写字母、数字、连字符", c, i)
+		}
+	}
+
+	// 不能以连字符开头或结尾
+	if slug[0] == '-' || slug[len(slug)-1] == '-' {
+		return fmt.Errorf("不能以连字符开头或结尾")
 	}
 
 	return nil

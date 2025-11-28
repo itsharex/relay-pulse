@@ -55,6 +55,7 @@ storage:
 monitors:
   # --- 88code ---
   - provider: "88code"
+    provider_slug: "88code"  # 可选：URL slug（用于生成服务商专属页面链接 /p/88code），未配置时使用 provider 小写
     provider_url: "https://88code.com"  # 可选：服务商官网链接，前端可点击跳转
     service: "cc"
     category: "commercial"  # 必填：商业站(commercial) 或 公益站(public)

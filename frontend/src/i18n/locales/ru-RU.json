@@ -140,6 +140,13 @@
     "issuesBtn": "Сообщить о проблеме",
     "openSourceLabel": "Открытый проект, будем рады вашему вкладу"
   },
+  "provider": {
+    "pageTitle": "{{name}} - Мониторинг сервиса",
+    "pageDescription": "Мониторинг доступности LLM-сервисов {{name}} в реальном времени",
+    "notFoundTitle": "Провайдер не найден",
+    "notFoundMessage": "Провайдер \"{{slug}}\" не существует или ещё не подключён к мониторингу",
+    "backToHome": "На главную"
+  },
   "accessibility": {
     "uptimeBlock": "Доступность {{uptime}}%",
     "noDataBlock": "Нет данных",

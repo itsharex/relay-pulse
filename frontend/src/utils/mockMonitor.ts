@@ -126,6 +126,7 @@ export function fetchMockMonitorData(timeRangeId: string): Promise<ProcessedMoni
           data.push({
             id: `${provider.id}-${service}`,
             providerId: provider.id,
+            providerSlug: provider.id, // Mock: 使用 id 作为 slug
             providerName: provider.name,
             serviceType: service,
             category,

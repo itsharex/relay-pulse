@@ -140,6 +140,13 @@
     "issuesBtn": "问题反馈",
     "openSourceLabel": "开源项目，欢迎贡献"
   },
+  "provider": {
+    "pageTitle": "{{name}} - 服务监控",
+    "pageDescription": "{{name}} 的 LLM 服务可用性实时监控",
+    "notFoundTitle": "服务商未找到",
+    "notFoundMessage": "服务商 \"{{slug}}\" 不存在或尚未接入监控",
+    "backToHome": "返回首页"
+  },
   "accessibility": {
     "uptimeBlock": "可用率 {{uptime}}%",
     "noDataBlock": "无数据",

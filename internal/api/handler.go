@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,9 +37,10 @@ type CurrentStatus struct {
 
 // MonitorResult API返回结构
 type MonitorResult struct {
-	Provider    string              `json:"provider"`
-	ProviderURL string              `json:"provider_url"` // 服务商官网链接
-	Service     string              `json:"service"`
+	Provider     string              `json:"provider"`
+	ProviderSlug string              `json:"provider_slug"` // URL slug（用于生成专属页面链接）
+	ProviderURL  string              `json:"provider_url"`  // 服务商官网链接
+	Service      string              `json:"service"`
 	Category    string              `json:"category"` // 分类：commercial（推广站）或 public（公益站）
 	Sponsor     string              `json:"sponsor"`  // 赞助者
 	SponsorURL  string              `json:"sponsor_url"` // 赞助者链接
@@ -51,7 +53,7 @@ type MonitorResult struct {
 func (h *Handler) GetStatus(c *gin.Context) {
 	// 参数解析
 	period := c.DefaultQuery("period", "24h")
-	qProvider := c.DefaultQuery("provider", "all")
+	qProvider := strings.ToLower(strings.TrimSpace(c.DefaultQuery("provider", "all")))
 	qService := c.DefaultQuery("service", "all")
 
 	// 解析时间范围
@@ -69,13 +71,28 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	degradedWeight := h.config.DegradedWeight
 	h.cfgMu.RUnlock()
 
+	// 构建 slug -> provider 映射（slug作为provider的路由别名）
+	slugToProvider := make(map[string]string) // slug -> normalized provider
+	for _, task := range monitors {
+		normalizedProvider := strings.ToLower(strings.TrimSpace(task.Provider))
+		slugToProvider[task.ProviderSlug] = normalizedProvider
+	}
+
+	// 将查询参数（可能是slug或provider）映射回真实的provider
+	realProvider := qProvider
+	if mappedProvider, exists := slugToProvider[qProvider]; exists {
+		realProvider = mappedProvider
+	}
+
 	var response []MonitorResult
 
 	// 遍历配置中的监控项
 	seen := make(map[string]bool)
 	for _, task := range monitors {
-		// 过滤
-		if qProvider != "all" && qProvider != task.Provider {
+		normalizedTaskProvider := strings.ToLower(strings.TrimSpace(task.Provider))
+
+		// 过滤（统一使用 provider 名称匹配）
+		if realProvider != "all" && realProvider != normalizedTaskProvider {
 			continue
 		}
 		if qService != "all" && qService != task.Service {
@@ -120,16 +137,23 @@ func (h *Handler) GetStatus(c *gin.Context) {
 			}
 		}
 
+		// 生成 slug：优先使用配置的 provider_slug，回退到 provider 小写
+		slug := task.ProviderSlug
+		if slug == "" {
+			slug = strings.ToLower(strings.TrimSpace(task.Provider))
+		}
+
 		response = append(response, MonitorResult{
-			Provider:    task.Provider,
-			ProviderURL: task.ProviderURL,
-			Service:     task.Service,
-			Category:    task.Category,
-			Sponsor:     task.Sponsor,
-			SponsorURL:  task.SponsorURL,
-			Channel:     task.Channel,
-			Current:     current,
-			Timeline:    timeline,
+			Provider:     task.Provider,
+			ProviderSlug: slug,
+			ProviderURL:  task.ProviderURL,
+			Service:      task.Service,
+			Category:     task.Category,
+			Sponsor:      task.Sponsor,
+			SponsorURL:   task.SponsorURL,
+			Channel:      task.Channel,
+			Current:      current,
+			Timeline:     timeline,
 		})
 	}
 

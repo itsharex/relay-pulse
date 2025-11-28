@@ -14,6 +14,7 @@ interface ControlsProps {
   loading: boolean;
   channels: string[];
   providers: ProviderOption[];  // 改为 ProviderOption[]
+  showCategoryFilter?: boolean; // 是否显示分类筛选器，默认 true（用于服务商专属页面）
   onProviderChange: (provider: string) => void;
   onServiceChange: (service: string) => void;
   onChannelChange: (channel: string) => void;
@@ -33,6 +34,7 @@ export function Controls({
   loading,
   channels,
   providers,
+  showCategoryFilter = true,
   onProviderChange,
   onServiceChange,
   onChannelChange,
@@ -44,10 +46,10 @@ export function Controls({
   const { t } = useTranslation();
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
-  // 统计激活的筛选器数量
+  // 统计激活的筛选器数量（仅计入可见的筛选器）
   const activeFiltersCount = [
-    filterCategory !== 'all',
-    filterProvider !== 'all',
+    showCategoryFilter && filterCategory !== 'all',
+    providers.length > 0 && filterProvider !== 'all',
     filterService !== 'all',
     filterChannel !== 'all',
   ].filter(Boolean).length;
@@ -55,32 +57,38 @@ export function Controls({
   // 筛选器组件（桌面和移动端共用）
   const FilterSelects = () => (
     <>
-      <select
-        id="filter-category"
-        name="filter-category"
-        value={filterCategory}
-        onChange={(e) => onCategoryChange(e.target.value)}
-        className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750 w-full sm:w-auto"
-      >
-        <option value="all">{t('controls.filters.category')}</option>
-        <option value="public">{t('controls.categories.charity')}</option>
-        <option value="commercial">{t('controls.categories.promoted')}</option>
-      </select>
+      {/* Category 筛选器 - 可通过 showCategoryFilter 控制显示 */}
+      {showCategoryFilter && (
+        <select
+          id="filter-category"
+          name="filter-category"
+          value={filterCategory}
+          onChange={(e) => onCategoryChange(e.target.value)}
+          className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750 w-full sm:w-auto"
+        >
+          <option value="all">{t('controls.filters.category')}</option>
+          <option value="public">{t('controls.categories.charity')}</option>
+          <option value="commercial">{t('controls.categories.promoted')}</option>
+        </select>
+      )}
 
-      <select
-        id="filter-provider"
-        name="filter-provider"
-        value={filterProvider}
-        onChange={(e) => onProviderChange(e.target.value)}
-        className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750 w-full sm:w-auto"
-      >
-        <option value="all">{t('controls.filters.provider')}</option>
-        {providers.map(({ value, label }) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
+      {/* Provider 筛选器 - 当 providers 为空时隐藏（用于服务商专属页面） */}
+      {providers.length > 0 && (
+        <select
+          id="filter-provider"
+          name="filter-provider"
+          value={filterProvider}
+          onChange={(e) => onProviderChange(e.target.value)}
+          className="bg-slate-800 text-slate-200 text-sm rounded-lg border border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:border-transparent p-2 outline-none transition-all hover:bg-slate-750 w-full sm:w-auto"
+        >
+          <option value="all">{t('controls.filters.provider')}</option>
+          {providers.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      )}
 
       <select
         id="filter-service"
@@ -239,12 +247,12 @@ export function Controls({
                 <FilterSelects />
               </div>
 
-              {/* 清空按钮 */}
+              {/* 清空按钮 - 只清空可见的筛选器 */}
               {activeFiltersCount > 0 && (
                 <button
                   onClick={() => {
-                    onCategoryChange('all');
-                    onProviderChange('all');
+                    if (showCategoryFilter) onCategoryChange('all');
+                    if (providers.length > 0) onProviderChange('all');
                     onServiceChange('all');
                     onChannelChange('all');
                   }}

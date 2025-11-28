@@ -153,6 +153,7 @@ export function useMonitorData({
             return {
               id: `${providerKey || item.provider}-${item.service}-${item.channel || 'default'}`,
               providerId: providerKey || item.provider,  // 规范化的 ID（小写）
+              providerSlug: item.provider_slug || canonicalize(item.provider), // URL slug
               providerName: providerLabel,  // 格式化的显示名称
               providerUrl: validateUrl(item.provider_url),
               serviceType: item.service,

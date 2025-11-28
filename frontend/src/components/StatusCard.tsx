@@ -14,11 +14,20 @@ type HistoryPoint = ProcessedMonitorData['history'][number];
 interface StatusCardProps {
   item: ProcessedMonitorData;
   timeRange: string;
+  showCategoryTag?: boolean; // 预留 prop，保持接口一致性（StatusCard 设计上不显示分类标签）
   onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
   onBlockLeave: () => void;
 }
 
-export function StatusCard({ item, timeRange, onBlockHover, onBlockLeave }: StatusCardProps) {
+export function StatusCard({
+  item,
+  timeRange,
+  showCategoryTag: _showCategoryTag,
+  onBlockHover,
+  onBlockLeave
+}: StatusCardProps) {
+  // showCategoryTag 目前未使用，StatusCard 设计上不显示分类标签
+  // 如需添加分类标签功能，可在此处实现
   const { t, i18n } = useTranslation();
 
   // 聚合热力图数据（移动端）

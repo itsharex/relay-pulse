@@ -1,85 +1,72 @@
-import { useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import App from './App';
-import {
-  PATH_LANGUAGE_MAP,
-  isSupportedLanguage,
-  type SupportedLanguage,
-} from './i18n';
+import ProviderPage from './pages/ProviderPage';
+import { useSyncLanguage } from './hooks/useSyncLanguage';
 
 /**
- * 语言包装器组件
+ * 语言布局组件
  *
  * 职责：
- * 1. 解析 URL 路径中的语言前缀
- * 2. 同步 URL 语言与 i18next 语言状态
- * 3. 处理无效语言前缀（重定向到根路径）
+ * 1. 接收固定的语言前缀（如 'en'、'ru'、'ja'）
+ * 2. 使用 useSyncLanguage Hook 同步语言状态
+ * 3. 使用 Outlet 渲染匹配的子路由（App 或 ProviderPage）
  */
-interface LanguageWrapperProps {
-  /** URL 路径中的语言前缀（如 'en'、'ru'、'ja' 或旧格式 'en-US'） */
-  pathLang?: string;
+interface LanguageLayoutProps {
+  /** 语言前缀（如 'en'、'ru'、'ja'），无前缀则为 undefined */
+  lang?: string;
 }
 
-function LanguageWrapper({ pathLang }: LanguageWrapperProps) {
-  const { i18n } = useTranslation();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    // 获取当前 i18n 语言，使用类型守卫确保类型安全
-    const rawLang = i18n.language;
-    const currentLang: SupportedLanguage = isSupportedLanguage(rawLang) ? rawLang : 'zh-CN';
-
-    // 场景 1: 根路径（无语言前缀），兜底非法语言
-    if (!pathLang) {
-      // 直接检查 rawLang 而非 currentLang，因为 currentLang 永远是有效值
-      if (!isSupportedLanguage(rawLang)) {
-        i18n.changeLanguage('zh-CN');
-      }
-      return;
-    }
-
-    // 场景 2: 尝试匹配新路径前缀（如 'en' → 'en-US'）
-    const targetLang = PATH_LANGUAGE_MAP[pathLang];
-
-    // 场景 3: 无效语言前缀，重定向到根路径
-    if (!targetLang) {
-      navigate('/', { replace: true });
-      return;
-    }
-
-    // 场景 4: 有效语言前缀，同步 i18n 语言状态
-    if (currentLang !== targetLang) {
-      i18n.changeLanguage(targetLang);
-    }
-  }, [pathLang, i18n, navigate, location]);
-
-  return <App />;
+function LanguageLayout({ lang }: LanguageLayoutProps) {
+  useSyncLanguage(lang);
+  return <Outlet />;
 }
 
 /**
  * 应用路由配置
  *
  * 路由规则：
- * 1. 根路径 `/` → 默认语言（由 i18n 检测器决定）
- * 2. 简化语言路径 `/en/*`、`/ru/*`、`/ja/*` → 对应语言版本
+ * 1. 根路径 `/` 和 `/p/:provider` → 默认语言（中文，由 i18n 检测器决定）
+ * 2. 明确的语言前缀路径：
+ *    - `/en` 和 `/en/p/:provider` → 英文
+ *    - `/ru` 和 `/ru/p/:provider` → 俄文
+ *    - `/ja` 和 `/ja/p/:provider` → 日文
  * 3. 无效路径 → 重定向到根路径
  *
+ * 嵌套路由结构：
+ * - LanguageLayout 负责语言同步
+ * - Outlet 渲染匹配的子路由（App 或 ProviderPage）
+ *
  * 注意：
+ * - 使用明确的路径前缀（/en、/ru、/ja）而非参数（:lang），避免与 /p/:provider 冲突
  * - `/api/*`、`/health` 等技术路径由后端处理，不会被前端路由拦截
- * - 语言前缀仅用于内容页面，不影响 API 路径
+ * - 所有内容页面（App、ProviderPage）自动获得 i18n 支持
  */
 export default function AppRouter() {
   return (
     <Routes>
       {/* 中文默认路径（无前缀） */}
-      <Route path="/" element={<LanguageWrapper />} />
+      <Route element={<LanguageLayout />}>
+        <Route index element={<App />} />
+        <Route path="p/:provider" element={<ProviderPage />} />
+      </Route>
 
-      {/* 简化语言前缀路径 */}
-      <Route path="/en/*" element={<LanguageWrapper pathLang="en" />} />
-      <Route path="/ru/*" element={<LanguageWrapper pathLang="ru" />} />
-      <Route path="/ja/*" element={<LanguageWrapper pathLang="ja" />} />
+      {/* 英文路径 */}
+      <Route path="en" element={<LanguageLayout lang="en" />}>
+        <Route index element={<App />} />
+        <Route path="p/:provider" element={<ProviderPage />} />
+      </Route>
+
+      {/* 俄文路径 */}
+      <Route path="ru" element={<LanguageLayout lang="ru" />}>
+        <Route index element={<App />} />
+        <Route path="p/:provider" element={<ProviderPage />} />
+      </Route>
+
+      {/* 日文路径 */}
+      <Route path="ja" element={<LanguageLayout lang="ja" />}>
+        <Route index element={<App />} />
+        <Route path="p/:provider" element={<ProviderPage />} />
+      </Route>
 
       {/* 捕获所有未匹配路径，重定向到根 */}
       <Route path="*" element={<Navigate to="/" replace />} />

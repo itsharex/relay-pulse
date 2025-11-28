@@ -16,6 +16,7 @@ interface StatusTableProps {
   data: ProcessedMonitorData[];
   sortConfig: SortConfig;
   timeRange: string;
+  showCategoryTag?: boolean; // 是否显示分类标签（推荐/公益），默认 true
   onSort: (key: string) => void;
   onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
   onBlockLeave: () => void;
@@ -24,10 +25,12 @@ interface StatusTableProps {
 // 移动端卡片列表项组件
 function MobileListItem({
   item,
+  showCategoryTag = true,
   onBlockHover,
   onBlockLeave,
 }: {
   item: ProcessedMonitorData;
+  showCategoryTag?: boolean;
   onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
   onBlockLeave: () => void;
 }) {
@@ -61,15 +64,18 @@ function MobileListItem({
               <span className="font-semibold text-slate-100 truncate">
                 <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
               </span>
-              <span
-                className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                  item.category === 'commercial'
-                    ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
-                    : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
-                }`}
-              >
-                {item.category === 'commercial' ? t('table.categoryShort.promoted') : t('table.categoryShort.charity')}
-              </span>
+              {/* Category 标签 - 可通过 showCategoryTag 控制显示 */}
+              {showCategoryTag && (
+                <span
+                  className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                    item.category === 'commercial'
+                      ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+                      : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
+                  }`}
+                >
+                  {item.category === 'commercial' ? t('table.categoryShort.promoted') : t('table.categoryShort.charity')}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
               <span
@@ -223,6 +229,7 @@ export function StatusTable({
   data,
   sortConfig,
   timeRange,
+  showCategoryTag = true,
   onSort,
   onBlockHover,
   onBlockLeave,
@@ -259,6 +266,7 @@ export function StatusTable({
             <MobileListItem
               key={item.id}
               item={item}
+              showCategoryTag={showCategoryTag}
               onBlockHover={onBlockHover}
               onBlockLeave={onBlockLeave}
             />
@@ -342,16 +350,19 @@ export function StatusTable({
               <td className="p-4 font-medium text-slate-200">
                 <div className="flex items-center gap-2">
                   <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
-                  <span
-                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                      item.category === 'commercial'
-                        ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
-                        : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
-                    }`}
-                    title={item.category === 'commercial' ? t('table.categoryLabels.promoted') : t('table.categoryLabels.charity')}
-                  >
-                    {item.category === 'commercial' ? t('table.categoryShort.promoted') : t('table.categoryShort.charity')}
-                  </span>
+                  {/* Category 标签 - 可通过 showCategoryTag 控制显示 */}
+                  {showCategoryTag && (
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                        item.category === 'commercial'
+                          ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+                          : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
+                      }`}
+                      title={item.category === 'commercial' ? t('table.categoryLabels.promoted') : t('table.categoryLabels.charity')}
+                    >
+                      {item.category === 'commercial' ? t('table.categoryShort.promoted') : t('table.categoryShort.charity')}
+                    </span>
+                  )}
                 </div>
               </td>
               <td className="p-4 text-slate-300 text-sm">

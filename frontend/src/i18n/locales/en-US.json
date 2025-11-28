@@ -140,6 +140,13 @@
     "issuesBtn": "Report an issue",
     "openSourceLabel": "Open source project, contributions welcome"
   },
+  "provider": {
+    "pageTitle": "{{name}} - Service Monitoring",
+    "pageDescription": "Real-time LLM service availability monitoring for {{name}}",
+    "notFoundTitle": "Provider Not Found",
+    "notFoundMessage": "Provider \"{{slug}}\" does not exist or is not yet monitored",
+    "backToHome": "Back to Home"
+  },
   "accessibility": {
     "uptimeBlock": "Uptime {{uptime}}%",
     "noDataBlock": "No data",
