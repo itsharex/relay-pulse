@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
+import { Server } from 'lucide-react';
 import { useMonitorData } from '../hooks/useMonitorData';
 import { Header } from '../components/Header';
 import { Controls } from '../components/Controls';
@@ -78,8 +79,11 @@ export default function ProviderPage() {
     );
   });
 
-  // 软 404 处理：无数据时显示 404 页面
-  if (!loading && data.length === 0) {
+  // 软 404 处理：只在 provider slug 真正不存在时返回 404
+  // 避免网络错误或筛选条件导致的空数据被误判为 404
+  const providerExists = allData.some((item) => item.providerSlug === normalizedProvider);
+
+  if (!loading && !error && !providerExists) {
     return <ProviderNotFound providerSlug={provider || ''} isEmbedMode={isEmbedMode} />;
   }
 
@@ -168,13 +172,19 @@ export default function ProviderPage() {
         {/* 主内容区域 - 移除 py-6 以减小与控制面板的间距 */}
         <main>
           {error ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-red-400">{t('common.error')}: {error}</div>
+            <div className="flex flex-col items-center justify-center py-20 text-rose-400">
+              <Server size={64} className="mb-4 opacity-20" />
+              <p className="text-lg">{t('common.error', { message: error })}</p>
             </div>
           ) : loading && data.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
               <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
               <p className="animate-pulse">{t('common.loading')}</p>
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-600">
+              <Server size={64} className="mb-4 opacity-20" />
+              <p className="text-lg">{t('common.noData')}</p>
             </div>
           ) : (
             <>
