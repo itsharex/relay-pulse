@@ -67,6 +67,11 @@ type ChannelMigrationMapping struct {
 }
 
 // Storage 存储接口
+//
+// 索引依赖说明：
+// - GetLatest 和 GetHistory 的性能依赖于 idx_provider_service_channel_timestamp 索引
+// - 两个方法都必须包含完整的 (provider, service, channel) 等值条件
+// - ⚠️ 如果新增不带 channel 参数的查询方法，需要重新评估索引策略
 type Storage interface {
 	// Init 初始化存储
 	Init() error
@@ -78,14 +83,18 @@ type Storage interface {
 	SaveRecord(record *ProbeRecord) error
 
 	// GetLatest 获取最新记录
+	// 要求：必须传入 provider, service, channel 三个参数（索引覆盖）
 	GetLatest(provider, service, channel string) (*ProbeRecord, error)
 
 	// GetHistory 获取历史记录（时间范围）
+	// 要求：必须传入 provider, service, channel 三个参数（索引覆盖）
 	GetHistory(provider, service, channel string, since time.Time) ([]*ProbeRecord, error)
 
 	// CleanOldRecords 清理旧记录（保留最近N天）
+	// 注意：仅按 timestamp 过滤，会触发全表扫描（低频操作可接受）
 	CleanOldRecords(days int) error
 
 	// MigrateChannelData 将 channel 为空的历史记录迁移到最新配置
+	// 注意：一次性操作，无需索引优化
 	MigrateChannelData(mappings []ChannelMigrationMapping) error
 }

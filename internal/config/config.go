@@ -91,6 +91,15 @@ type AppConfig struct {
 	// 开启后会将监控项均匀分散在整个巡检周期内，避免流量突发
 	StaggerProbes *bool `yaml:"stagger_probes,omitempty" json:"stagger_probes,omitempty"`
 
+	// 是否启用并发查询（API 层优化，默认 false）
+	// 开启后 /api/status 接口会使用 goroutine 并发查询多个监控项，显著降低响应时间
+	// 注意：需要确保数据库连接池足够大（建议 max_open_conns >= 50）
+	EnableConcurrentQuery bool `yaml:"enable_concurrent_query" json:"enable_concurrent_query"`
+
+	// 并发查询时的最大并发度（默认 10，仅当 enable_concurrent_query=true 时生效）
+	// 限制同时执行的数据库查询数量，防止连接池耗尽
+	ConcurrentQueryLimit int `yaml:"concurrent_query_limit" json:"concurrent_query_limit"`
+
 	// 存储配置
 	Storage StorageConfig `yaml:"storage" json:"storage"`
 
@@ -219,6 +228,14 @@ func (c *AppConfig) Normalize() error {
 		c.StaggerProbes = &defaultValue
 	}
 
+	// 并发查询限制（默认 10）
+	if c.ConcurrentQueryLimit == 0 {
+		c.ConcurrentQueryLimit = 10
+	}
+	if c.ConcurrentQueryLimit < 1 {
+		return fmt.Errorf("concurrent_query_limit 必须 >= 1，当前值: %d", c.ConcurrentQueryLimit)
+	}
+
 	// 存储配置默认值
 	if c.Storage.Type == "" {
 		c.Storage.Type = "sqlite" // 默认使用 SQLite
@@ -233,15 +250,41 @@ func (c *AppConfig) Normalize() error {
 		if c.Storage.Postgres.SSLMode == "" {
 			c.Storage.Postgres.SSLMode = "disable"
 		}
+		// 连接池配置（考虑并发查询场景）
+		// - 串行查询：25 个连接足够（默认保守配置）
+		// - 并发查询：建议 50+ 连接（支持多个并发请求）
 		if c.Storage.Postgres.MaxOpenConns == 0 {
-			c.Storage.Postgres.MaxOpenConns = 25
+			// 根据是否启用并发查询设置默认值
+			if c.EnableConcurrentQuery {
+				c.Storage.Postgres.MaxOpenConns = 50 // 并发查询模式
+			} else {
+				c.Storage.Postgres.MaxOpenConns = 25 // 串行查询模式
+			}
 		}
 		if c.Storage.Postgres.MaxIdleConns == 0 {
-			c.Storage.Postgres.MaxIdleConns = 5
+			// 空闲连接数建议为最大连接数的 20-30%
+			if c.EnableConcurrentQuery {
+				c.Storage.Postgres.MaxIdleConns = 10
+			} else {
+				c.Storage.Postgres.MaxIdleConns = 5
+			}
 		}
 		if c.Storage.Postgres.ConnMaxLifetime == "" {
 			c.Storage.Postgres.ConnMaxLifetime = "1h"
 		}
+
+		// 并发查询配置校验（仅警告，不强制修改）
+		if c.EnableConcurrentQuery {
+			if c.Storage.Postgres.MaxOpenConns > 0 && c.Storage.Postgres.MaxOpenConns < c.ConcurrentQueryLimit {
+				log.Printf("[Config] 警告: max_open_conns(%d) < concurrent_query_limit(%d)，可能导致连接池等待",
+					c.Storage.Postgres.MaxOpenConns, c.ConcurrentQueryLimit)
+			}
+		}
+	}
+
+	// SQLite 场景下的并发查询警告
+	if c.Storage.Type == "sqlite" && c.EnableConcurrentQuery {
+		log.Println("[Config] 警告: SQLite 使用单连接（max_open_conns=1），并发查询无性能收益，建议关闭 enable_concurrent_query")
 	}
 
 	// 将全局慢请求阈值下发到每个监控项，并标准化 category、URLs、provider_slug
@@ -403,15 +446,17 @@ func (c *AppConfig) Clone() *AppConfig {
 	}
 
 	clone := &AppConfig{
-		Interval:            c.Interval,
-		IntervalDuration:    c.IntervalDuration,
-		SlowLatency:         c.SlowLatency,
-		SlowLatencyDuration: c.SlowLatencyDuration,
-		DegradedWeight:      c.DegradedWeight,
-		MaxConcurrency:      c.MaxConcurrency,
-		StaggerProbes:       staggerPtr,
-		Storage:             c.Storage,
-		Monitors:            make([]ServiceConfig, len(c.Monitors)),
+		Interval:              c.Interval,
+		IntervalDuration:      c.IntervalDuration,
+		SlowLatency:           c.SlowLatency,
+		SlowLatencyDuration:   c.SlowLatencyDuration,
+		DegradedWeight:        c.DegradedWeight,
+		MaxConcurrency:        c.MaxConcurrency,
+		StaggerProbes:         staggerPtr,
+		EnableConcurrentQuery: c.EnableConcurrentQuery,
+		ConcurrentQueryLimit:  c.ConcurrentQueryLimit,
+		Storage:               c.Storage,
+		Monitors:              make([]ServiceConfig, len(c.Monitors)),
 	}
 	copy(clone.Monitors, c.Monitors)
 	return clone

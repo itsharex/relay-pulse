@@ -60,6 +60,19 @@ func (s *SQLiteStorage) Init() error {
 	}
 
 	// 在列迁移完成后创建索引
+	//
+	// 索引设计说明：
+	// - 此索引专为核心查询优化：GetLatest() 和 GetHistory()
+	// - 所有业务查询都包含完整的 (provider, service, channel) 等值条件
+	// - timestamp DESC 支持时间范围查询和排序，避免额外排序开销
+	// - 列顺序遵循 B-Tree 最佳实践：等值列在前，范围/排序列在后
+	//
+	// ⚠️ 维护注意事项：
+	// - 如果未来新增"不带 channel 的高频查询"，需要重新评估索引策略
+	// - CleanOldRecords() 的全表扫描是可接受的（低频维护操作）
+	// - SQLite 对大数据量（>1GB）性能有限，建议迁移到 PostgreSQL
+	//
+	// 性能验证：EXPLAIN QUERY PLAN SELECT ... WHERE provider=? AND service=? AND channel=? AND timestamp>=?
 	indexSQL := `
 	CREATE INDEX IF NOT EXISTS idx_provider_service_channel_timestamp
 	ON probe_history(provider, service, channel, timestamp DESC);

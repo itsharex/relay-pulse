@@ -2,12 +2,14 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 
 	"monitor/internal/config"
 	"monitor/internal/storage"
@@ -69,6 +71,8 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	h.cfgMu.RLock()
 	monitors := h.config.Monitors
 	degradedWeight := h.config.DegradedWeight
+	enableConcurrent := h.config.EnableConcurrentQuery
+	concurrentLimit := h.config.ConcurrentQueryLimit
 	h.cfgMu.RUnlock()
 
 	// 构建 slug -> provider 映射（slug作为provider的路由别名）
@@ -84,18 +88,52 @@ func (h *Handler) GetStatus(c *gin.Context) {
 		realProvider = mappedProvider
 	}
 
-	var response []MonitorResult
+	// 过滤并去重监控项
+	filtered := h.filterMonitors(monitors, realProvider, qService)
 
-	// 遍历配置中的监控项
+	// 根据配置选择串行或并发查询
+	var response []MonitorResult
+	var mode string
+	if enableConcurrent {
+		mode = "concurrent"
+		response, err = h.getStatusConcurrent(c, filtered, since, period, degradedWeight, concurrentLimit)
+	} else {
+		mode = "serial"
+		response, err = h.getStatusSerial(filtered, since, period, degradedWeight)
+	}
+
+	if err != nil {
+		log.Printf("[API] GetStatus 失败 mode=%s monitors=%d period=%s error=%v", mode, len(filtered), period, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("查询失败: %v", err),
+		})
+		return
+	}
+
+	log.Printf("[API] GetStatus 成功 mode=%s monitors=%d period=%s count=%d", mode, len(filtered), period, len(response))
+
+	c.JSON(http.StatusOK, gin.H{
+		"meta": gin.H{
+			"period": period,
+			"count":  len(response),
+		},
+		"data": response,
+	})
+}
+
+// filterMonitors 过滤并去重监控项
+func (h *Handler) filterMonitors(monitors []config.ServiceConfig, provider, service string) []config.ServiceConfig {
+	var filtered []config.ServiceConfig
 	seen := make(map[string]bool)
+
 	for _, task := range monitors {
 		normalizedTaskProvider := strings.ToLower(strings.TrimSpace(task.Provider))
 
 		// 过滤（统一使用 provider 名称匹配）
-		if realProvider != "all" && realProvider != normalizedTaskProvider {
+		if provider != "all" && provider != normalizedTaskProvider {
 			continue
 		}
-		if qService != "all" && qService != task.Service {
+		if service != "all" && service != task.Service {
 			continue
 		}
 
@@ -106,64 +144,108 @@ func (h *Handler) GetStatus(c *gin.Context) {
 		}
 		seen[key] = true
 
+		filtered = append(filtered, task)
+	}
+
+	return filtered
+}
+
+// getStatusSerial 串行查询（原有逻辑）
+func (h *Handler) getStatusSerial(monitors []config.ServiceConfig, since time.Time, period string, degradedWeight float64) ([]MonitorResult, error) {
+	var response []MonitorResult
+
+	for _, task := range monitors {
 		// 获取最新记录
 		latest, err := h.storage.GetLatest(task.Provider, task.Service, task.Channel)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": fmt.Sprintf("查询失败: %v", err),
-			})
-			return
+			return nil, fmt.Errorf("查询失败 %s/%s/%s: %w", task.Provider, task.Service, task.Channel, err)
 		}
 
 		// 获取历史记录
 		history, err := h.storage.GetHistory(task.Provider, task.Service, task.Channel, since)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": fmt.Sprintf("查询历史失败: %v", err),
-			})
-			return
+			return nil, fmt.Errorf("查询历史失败 %s/%s/%s: %w", task.Provider, task.Service, task.Channel, err)
 		}
 
-		// 转换为时间轴数据
-		timeline := h.buildTimeline(history, period, degradedWeight)
+		// 构建响应
+		result := h.buildMonitorResult(task, latest, history, period, degradedWeight)
+		response = append(response, result)
+	}
 
-		// 转换为API响应格式（不暴露数据库主键）
-		var current *CurrentStatus
-		if latest != nil {
-			current = &CurrentStatus{
-				Status:    latest.Status,
-				Latency:   latest.Latency,
-				Timestamp: latest.Timestamp,
+	return response, nil
+}
+
+// getStatusConcurrent 并发查询（使用 errgroup + 并发限制）
+func (h *Handler) getStatusConcurrent(c *gin.Context, monitors []config.ServiceConfig, since time.Time, period string, degradedWeight float64, limit int) ([]MonitorResult, error) {
+	// 使用请求的 context（支持取消）
+	g, _ := errgroup.WithContext(c.Request.Context())
+	g.SetLimit(limit) // 限制最大并发度
+
+	// 预分配结果数组（保持顺序）
+	results := make([]MonitorResult, len(monitors))
+
+	for i, task := range monitors {
+		i, task := i, task // 捕获循环变量
+		g.Go(func() error {
+			// 获取最新记录
+			latest, err := h.storage.GetLatest(task.Provider, task.Service, task.Channel)
+			if err != nil {
+				return fmt.Errorf("GetLatest %s/%s/%s: %w", task.Provider, task.Service, task.Channel, err)
 			}
-		}
 
-		// 生成 slug：优先使用配置的 provider_slug，回退到 provider 小写
-		slug := task.ProviderSlug
-		if slug == "" {
-			slug = strings.ToLower(strings.TrimSpace(task.Provider))
-		}
+			// 获取历史记录
+			history, err := h.storage.GetHistory(task.Provider, task.Service, task.Channel, since)
+			if err != nil {
+				return fmt.Errorf("GetHistory %s/%s/%s: %w", task.Provider, task.Service, task.Channel, err)
+			}
 
-		response = append(response, MonitorResult{
-			Provider:     task.Provider,
-			ProviderSlug: slug,
-			ProviderURL:  task.ProviderURL,
-			Service:      task.Service,
-			Category:     task.Category,
-			Sponsor:      task.Sponsor,
-			SponsorURL:   task.SponsorURL,
-			Channel:      task.Channel,
-			Current:      current,
-			Timeline:     timeline,
+			// 构建响应（固定位置写入，保持顺序）
+			results[i] = h.buildMonitorResult(task, latest, history, period, degradedWeight)
+			return nil
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"meta": gin.H{
-			"period": period,
-			"count":  len(response),
-		},
-		"data": response,
-	})
+	// 等待所有 goroutine 完成
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// buildMonitorResult 构建单个监控项的响应结构
+func (h *Handler) buildMonitorResult(task config.ServiceConfig, latest *storage.ProbeRecord, history []*storage.ProbeRecord, period string, degradedWeight float64) MonitorResult {
+	// 转换为时间轴数据
+	timeline := h.buildTimeline(history, period, degradedWeight)
+
+	// 转换为API响应格式（不暴露数据库主键）
+	var current *CurrentStatus
+	if latest != nil {
+		current = &CurrentStatus{
+			Status:    latest.Status,
+			Latency:   latest.Latency,
+			Timestamp: latest.Timestamp,
+		}
+	}
+
+	// 生成 slug：优先使用配置的 provider_slug，回退到 provider 小写
+	slug := task.ProviderSlug
+	if slug == "" {
+		slug = strings.ToLower(strings.TrimSpace(task.Provider))
+	}
+
+	return MonitorResult{
+		Provider:     task.Provider,
+		ProviderSlug: slug,
+		ProviderURL:  task.ProviderURL,
+		Service:      task.Service,
+		Category:     task.Category,
+		Sponsor:      task.Sponsor,
+		SponsorURL:   task.SponsorURL,
+		Channel:      task.Channel,
+		Current:      current,
+		Timeline:     timeline,
+	}
 }
 
 // parsePeriod 解析时间范围
