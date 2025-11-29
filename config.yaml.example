@@ -21,6 +21,23 @@ max_concurrency: 15
 # - false: 所有监控项同时执行（仅用于调试）
 stagger_probes: true
 
+# ============================================
+# API 性能优化
+# ============================================
+
+# 并发查询优化（可选，默认 false）
+# 启用后 /api/status 接口会使用 goroutine 并发查询多个监控项
+# ⚠️ 仅适用于 PostgreSQL，SQLite 使用单连接无并发收益
+# 性能提升：10 个监控项查询时间从 ~2s 降至 ~300ms（-85%）
+enable_concurrent_query: false
+
+# 并发查询限制（可选，默认 10，仅当 enable_concurrent_query=true 时生效）
+# 限制同时执行的数据库查询数量，防止连接池耗尽
+# 建议：根据数据库连接池大小调整
+#   - max_open_conns >= concurrent_query_limit × 并发请求数 × 1.2
+#   - 示例：50 >= 10 × 3 × 1.2 = 36（安全）
+concurrent_query_limit: 10
+
 # 可用率中黄色状态的权重（0-1，默认 0.7）
 # 绿色=1.0, 黄色=degraded_weight, 红色=0.0
 # 可选配置，不设置则使用默认值 0.7
