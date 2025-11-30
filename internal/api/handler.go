@@ -466,7 +466,9 @@ func (h *Handler) extractUniqueProviderSlugs(monitors []config.ServiceConfig) []
 
 // buildSitemapXML 构建 sitemap.xml 内容
 func (h *Handler) buildSitemapXML(providerSlugs []string) string {
-	baseURL := "https://relaypulse.top"
+	h.cfgMu.RLock()
+	baseURL := h.config.PublicBaseURL
+	h.cfgMu.RUnlock()
 	languages := []struct {
 		code string // hreflang 语言码
 		path string // URL 路径前缀
@@ -553,12 +555,16 @@ func (h *Handler) buildSitemapXML(providerSlugs []string) string {
 
 // GetRobots 生成 robots.txt
 func (h *Handler) GetRobots(c *gin.Context) {
-	robotsTxt := `User-agent: *
+	h.cfgMu.RLock()
+	baseURL := h.config.PublicBaseURL
+	h.cfgMu.RUnlock()
+
+	robotsTxt := fmt.Sprintf(`User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://relaypulse.top/sitemap.xml
-`
+Sitemap: %s/sitemap.xml
+`, baseURL)
 
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Header("Cache-Control", "public, max-age=86400") // 缓存 24 小时

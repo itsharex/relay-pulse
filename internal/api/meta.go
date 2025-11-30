@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"log"
 	"regexp"
 	"strings"
 
@@ -42,6 +43,17 @@ func isValidProviderSlug(slug string) bool {
 		return false
 	}
 	return providerSlugRegex.MatchString(slug)
+}
+
+// isValidHomePath 检查路径是否为有效的首页路径（/、/en/、/ru/、/ja/）
+func isValidHomePath(path string) bool {
+	trimmed := strings.Trim(path, "/")
+	if trimmed == "" {
+		return true // 根路径
+	}
+	// 检查是否只有一个语言前缀（且无子路径）
+	_, isLang := pathToLangCode[trimmed]
+	return isLang
 }
 
 // MetaData 页面 Meta 数据
@@ -155,15 +167,30 @@ func getMetaContent(langCode string, slug string, providerName string, isProvide
 }
 
 // generatePageMeta 生成完整的 meta 标签
-func generatePageMeta(meta MetaData, baseURL string, currentPath string) PageMeta {
+func generatePageMeta(meta MetaData, baseURL string) PageMeta {
 	// 1. 基础 meta
 	basicMeta := fmt.Sprintf(`    <title>%s</title>
     <meta name="description" content="%s">`,
 		meta.Title,
 		meta.Description)
 
-	// 2. Canonical URL
-	canonicalURL := baseURL + currentPath
+	// 2. Canonical URL - 使用已验证的数据重构，避免 XSS
+	var canonicalURL string
+	if meta.IsProviderPage {
+		// 服务商页面：使用已验证的 slug
+		if meta.Language.PathPrefix == "" {
+			canonicalURL = fmt.Sprintf("%s/p/%s", baseURL, meta.Slug)
+		} else {
+			canonicalURL = fmt.Sprintf("%s/%s/p/%s", baseURL, meta.Language.PathPrefix, meta.Slug)
+		}
+	} else {
+		// 首页：使用语言前缀
+		if meta.Language.PathPrefix == "" {
+			canonicalURL = fmt.Sprintf("%s/", baseURL)
+		} else {
+			canonicalURL = fmt.Sprintf("%s/%s/", baseURL, meta.Language.PathPrefix)
+		}
+	}
 	canonical := fmt.Sprintf(`    <link rel="canonical" href="%s">`, canonicalURL)
 
 	// 3. Hreflang 标签
@@ -233,10 +260,15 @@ func generatePageMeta(meta MetaData, baseURL string, currentPath string) PageMet
 			},
 			"areaServed": "全球",
 		}
-		jsonLDBytes, _ := json.MarshalIndent(jsonLDData, "    ", "  ")
-		jsonLD = fmt.Sprintf(`    <script type="application/ld+json">
+		jsonLDBytes, err := json.MarshalIndent(jsonLDData, "    ", "  ")
+		if err != nil {
+			log.Printf("[SEO] JSON-LD marshal failed (provider=%s): %v", meta.Slug, err)
+			jsonLD = ""
+		} else {
+			jsonLD = fmt.Sprintf(`    <script type="application/ld+json">
     %s
     </script>`, string(jsonLDBytes))
+		}
 	} else {
 		// 首页：WebSite 类型
 		jsonLDData := map[string]interface{}{
@@ -247,10 +279,15 @@ func generatePageMeta(meta MetaData, baseURL string, currentPath string) PageMet
 			"description": meta.Description,
 			"inLanguage": []string{"zh-CN", "en-US", "ru-RU", "ja-JP"},
 		}
-		jsonLDBytes, _ := json.MarshalIndent(jsonLDData, "    ", "  ")
-		jsonLD = fmt.Sprintf(`    <script type="application/ld+json">
+		jsonLDBytes, err := json.MarshalIndent(jsonLDData, "    ", "  ")
+		if err != nil {
+			log.Printf("[SEO] JSON-LD marshal failed (lang=%s): %v", meta.Language.Code, err)
+			jsonLD = ""
+		} else {
+			jsonLD = fmt.Sprintf(`    <script type="application/ld+json">
     %s
     </script>`, string(jsonLDBytes))
+		}
 	}
 
 	return PageMeta{
@@ -266,7 +303,7 @@ func generatePageMeta(meta MetaData, baseURL string, currentPath string) PageMet
 // injectMetaTags 在 index.html 中注入 meta 标签
 // 返回 (html, isNotFound)，isNotFound 表示 provider 不存在
 func injectMetaTags(indexHTML string, path string, cfg *config.AppConfig) (string, bool) {
-	const baseURL = "https://relaypulse.top"
+	baseURL := cfg.PublicBaseURL
 
 	// 解析路径
 	langCode, providerSlug, isProviderPage := parseRequestPath(path)
@@ -303,14 +340,24 @@ func injectMetaTags(indexHTML string, path string, cfg *config.AppConfig) (strin
 		}
 	}
 
+	// 非服务商页面：检查是否为有效首页
+	// 有效首页：/、/en/、/ru/、/ja/
+	// 无效路径：/foo、/foo/bar、/en/foo 等，注入 noindex 防止收录
+	if !isProviderPage && !isValidHomePath(path) {
+		return injectNoindexMeta(indexHTML, langCode), false
+	}
+
 	// 获取 meta 内容（传入 slug 和 displayName）
 	metaData := getMetaContent(langCode, providerSlug, providerName, isProviderPage)
 
 	// 生成完整 meta 标签
-	pageMeta := generatePageMeta(metaData, baseURL, path)
+	pageMeta := generatePageMeta(metaData, baseURL)
 
 	// 替换原有的 title 和 description
 	html := indexHTML
+
+	// 替换 <html lang="...">
+	html = replaceHtmlLang(html, metaData.Language.Code)
 
 	// 替换 <title>...</title>
 	html = replaceBetween(html, "<title>", "</title>", metaData.Title)
@@ -353,8 +400,33 @@ func inject404Meta(indexHTML string, langCode string) string {
 	}
 
 	htmlContent := indexHTML
+
+	// 替换 lang 属性
+	htmlContent = replaceHtmlLang(htmlContent, langCode)
+
 	htmlContent = replaceBetween(htmlContent, "<title>", "</title>", html.EscapeString(title))
 	htmlContent = replaceMetaDescription(htmlContent, html.EscapeString(description))
+
+	// 添加 noindex meta 标签
+	noindexMeta := `    <meta name="robots" content="noindex, nofollow">`
+	htmlContent = strings.Replace(htmlContent, "</head>", "\n"+noindexMeta+"\n  </head>", 1)
+
+	return htmlContent
+}
+
+// injectNoindexMeta 注入 noindex meta 标签（用于非白名单路径，保持首页内容）
+func injectNoindexMeta(indexHTML string, langCode string) string {
+	// 获取首页的 meta 内容
+	metaData := getMetaContent(langCode, "", "", false)
+
+	htmlContent := indexHTML
+
+	// 替换 lang 属性
+	htmlContent = replaceHtmlLang(htmlContent, langCode)
+
+	// 替换 title 和 description
+	htmlContent = replaceBetween(htmlContent, "<title>", "</title>", metaData.Title)
+	htmlContent = replaceMetaDescription(htmlContent, metaData.Description)
 
 	// 添加 noindex meta 标签
 	noindexMeta := `    <meta name="robots" content="noindex, nofollow">`
@@ -397,4 +469,23 @@ func replaceMetaDescription(html, newDescription string) string {
 	endIdx += startIdx
 
 	return html[:startIdx] + newDescription + html[endIdx:]
+}
+
+// replaceHtmlLang 替换 <html lang="..."> 中的语言属性
+func replaceHtmlLang(html, newLang string) string {
+	// 匹配 <html lang="...">
+	start := `<html lang="`
+	startIdx := strings.Index(html, start)
+	if startIdx == -1 {
+		return html
+	}
+	startIdx += len(start)
+
+	endIdx := strings.Index(html[startIdx:], `"`)
+	if endIdx == -1 {
+		return html
+	}
+	endIdx += startIdx
+
+	return html[:startIdx] + newLang + html[endIdx:]
 }

@@ -58,3 +58,67 @@ func TestResolveBodyIncludesRejectsOutsideData(t *testing.T) {
 		t.Fatalf("期望 include 非 data 目录时报错")
 	}
 }
+
+// Test consecutive hyphens in slug
+func TestConsecutiveHyphensSlug(t *testing.T) {
+	tests := []struct {
+		name      string
+		slug      string
+		shouldErr bool
+	}{
+		{"单连字符", "easy-chat", false},
+		{"连续两个连字符", "easy--chat", true},
+		{"连续三个连字符", "easy---chat", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateProviderSlug(tt.slug)
+			if tt.shouldErr && err == nil {
+				t.Errorf("validateProviderSlug(%q) should return error", tt.slug)
+			}
+			if !tt.shouldErr && err != nil {
+				t.Errorf("validateProviderSlug(%q) should not return error, got: %v", tt.slug, err)
+			}
+		})
+	}
+}
+
+// Test baseURL normalization
+func TestBaseURLNormalization(t *testing.T) {
+	tests := []struct {
+		name         string
+		inputURL     string
+		expectedURL  string
+		shouldErr    bool
+	}{
+		{"正常 HTTPS URL", "https://relaypulse.top", "https://relaypulse.top", false},
+		{"带尾随斜杠", "https://relaypulse.top/", "https://relaypulse.top", false},
+		{"多个尾随斜杠", "https://relaypulse.top///", "https://relaypulse.top", false},
+		{"HTTP URL（警告）", "http://example.com", "http://example.com", false},
+		{"无效协议", "ftp://example.com", "", true},
+		{"缺少协议", "example.com", "", true},
+		{"缺少主机", "https://", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &AppConfig{PublicBaseURL: tt.inputURL}
+			err := cfg.Normalize()
+			
+			if tt.shouldErr {
+				if err == nil {
+					t.Errorf("Normalize() should return error for %q", tt.inputURL)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Normalize() should not return error for %q, got: %v", tt.inputURL, err)
+				}
+				if cfg.PublicBaseURL != tt.expectedURL {
+					t.Errorf("Normalize() URL = %q, want %q", cfg.PublicBaseURL, tt.expectedURL)
+				}
+			}
+		})
+	}
+}
+

@@ -103,6 +103,11 @@ type AppConfig struct {
 	// 存储配置
 	Storage StorageConfig `yaml:"storage" json:"storage"`
 
+	// 公开访问的基础 URL（用于 SEO、sitemap 等）
+	// 默认: https://relaypulse.top
+	// 可通过环境变量 MONITOR_PUBLIC_BASE_URL 覆盖
+	PublicBaseURL string `yaml:"public_base_url" json:"public_base_url"`
+
 	Monitors []ServiceConfig `yaml:"monitors"`
 }
 
@@ -211,6 +216,17 @@ func (c *AppConfig) Normalize() error {
 		return fmt.Errorf("degraded_weight 必须在 0 到 1 之间（0 表示使用默认值 0.7），当前值: %.2f", c.DegradedWeight)
 	}
 
+	// 公开访问的基础 URL（默认 https://relaypulse.top）
+	if c.PublicBaseURL == "" {
+		c.PublicBaseURL = "https://relaypulse.top"
+	}
+
+	// 规范化 baseURL：去除尾随斜杠、验证协议
+	c.PublicBaseURL = strings.TrimRight(c.PublicBaseURL, "/")
+	if err := validateBaseURL(c.PublicBaseURL); err != nil {
+		return fmt.Errorf("public_base_url 无效: %w", err)
+	}
+
 	// 最大并发数（默认 10）
 	// - 未配置或 0：使用默认值 10
 	// - -1：无限制（自动扩容到监控项数量）
@@ -305,12 +321,17 @@ func (c *AppConfig) Normalize() error {
 		if slug == "" {
 			// 未配置时，自动生成: provider 转小写
 			slug = strings.ToLower(strings.TrimSpace(c.Monitors[i].Provider))
-		} else {
-			// 已配置时，验证格式: 仅允许小写字母、数字、连字符
-			if err := validateProviderSlug(slug); err != nil {
-				return fmt.Errorf("monitor[%d]: provider_slug '%s' 无效: %w", i, slug, err)
-			}
 		}
+
+		// 无论自动生成还是手动配置，都进行格式验证
+		// 确保配置期即可发现 slug 格式问题，避免运行时 404
+		if err := validateProviderSlug(slug); err != nil {
+			return fmt.Errorf("monitor[%d]: provider_slug '%s' 无效 (来源: %s): %w",
+				i, slug,
+				map[bool]string{true: "自动生成", false: "手动配置"}[c.Monitors[i].ProviderSlug == ""],
+				err)
+		}
+
 		c.Monitors[i].ProviderSlug = slug
 
 		// 检测 slug 重复 (同一 slug 可用于不同 service，仅记录不报错)
@@ -328,6 +349,11 @@ func (c *AppConfig) Normalize() error {
 // API Key 格式：MONITOR_<PROVIDER>_<SERVICE>_API_KEY
 // 存储配置格式：MONITOR_STORAGE_TYPE, MONITOR_POSTGRES_HOST 等
 func (c *AppConfig) ApplyEnvOverrides() {
+	// PublicBaseURL 环境变量覆盖
+	if envBaseURL := os.Getenv("MONITOR_PUBLIC_BASE_URL"); envBaseURL != "" {
+		c.PublicBaseURL = envBaseURL
+	}
+
 	// 存储配置环境变量覆盖
 	if envType := os.Getenv("MONITOR_STORAGE_TYPE"); envType != "" {
 		c.Storage.Type = envType
@@ -456,6 +482,7 @@ func (c *AppConfig) Clone() *AppConfig {
 		EnableConcurrentQuery: c.EnableConcurrentQuery,
 		ConcurrentQueryLimit:  c.ConcurrentQueryLimit,
 		Storage:               c.Storage,
+		PublicBaseURL:         c.PublicBaseURL,
 		Monitors:              make([]ServiceConfig, len(c.Monitors)),
 	}
 	copy(clone.Monitors, c.Monitors)
@@ -500,13 +527,19 @@ func validateURL(rawURL, fieldName string) error {
 }
 
 // validateProviderSlug 验证 provider_slug 格式
-// 规则：仅允许小写字母(a-z)、数字(0-9)、连字符(-)
+// 规则：仅允许小写字母(a-z)、数字(0-9)、连字符(-)，且不允许连续连字符，长度不超过 100 字符
 func validateProviderSlug(slug string) error {
 	if slug == "" {
 		return fmt.Errorf("slug 不能为空")
 	}
 
+	// 检查长度上限（与 isValidProviderSlug 保持一致）
+	if len(slug) > 100 {
+		return fmt.Errorf("长度超过限制（当前 %d，最大 100）", len(slug))
+	}
+
 	// 检查字符合法性
+	prevIsHyphen := false
 	for i, c := range slug {
 		isLower := c >= 'a' && c <= 'z'
 		isDigit := c >= '0' && c <= '9'
@@ -515,11 +548,48 @@ func validateProviderSlug(slug string) error {
 		if !isLower && !isDigit && !isHyphen {
 			return fmt.Errorf("包含非法字符 '%c' (位置 %d)，仅允许小写字母、数字、连字符", c, i)
 		}
+
+		// 检查连续连字符
+		if isHyphen && prevIsHyphen {
+			return fmt.Errorf("不允许连续连字符（位置 %d）", i)
+		}
+
+		prevIsHyphen = isHyphen
 	}
 
 	// 不能以连字符开头或结尾
 	if slug[0] == '-' || slug[len(slug)-1] == '-' {
 		return fmt.Errorf("不能以连字符开头或结尾")
+	}
+
+	return nil
+}
+
+// validateBaseURL 验证 baseURL 格式和协议
+func validateBaseURL(baseURL string) error {
+	if baseURL == "" {
+		return fmt.Errorf("baseURL 不能为空")
+	}
+
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("URL 格式无效: %w", err)
+	}
+
+	// 只允许 http 和 https 协议
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("只支持 http:// 或 https:// 协议，收到: %s", parsed.Scheme)
+	}
+
+	// Host 不能为空
+	if parsed.Host == "" {
+		return fmt.Errorf("URL 缺少主机名")
+	}
+
+	// 非 HTTPS 警告
+	if scheme == "http" {
+		log.Printf("[Config] 警告: public_base_url 使用了非加密的 http:// 协议: %s", baseURL)
 	}
 
 	return nil
