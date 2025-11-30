@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,16 +12,122 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/singleflight"
 
 	"monitor/internal/config"
 	"monitor/internal/storage"
 )
 
+// statusCache API 响应缓存，防止高频查询打爆数据库
+type statusCache struct {
+	mu       sync.RWMutex
+	entries  map[string]*cacheEntry
+	ttl      time.Duration
+	maxSize  int                // 最大缓存条目数，防止内存泄漏
+	sf       singleflight.Group // 防止缓存击穿
+}
+
+type cacheEntry struct {
+	data     []byte
+	expireAt time.Time
+}
+
+func newStatusCache(ttl time.Duration, maxSize int) *statusCache {
+	return &statusCache{
+		entries: make(map[string]*cacheEntry),
+		ttl:     ttl,
+		maxSize: maxSize,
+	}
+}
+
+// get 获取缓存，过期则删除并返回 miss
+func (c *statusCache) get(key string) ([]byte, bool) {
+	now := time.Now()
+	c.mu.RLock()
+	entry := c.entries[key]
+	c.mu.RUnlock()
+
+	if entry == nil {
+		return nil, false
+	}
+
+	if now.After(entry.expireAt) {
+		// 懒清理：删除过期 key
+		c.mu.Lock()
+		if cur := c.entries[key]; cur == entry {
+			delete(c.entries, key)
+		}
+		c.mu.Unlock()
+		return nil, false
+	}
+
+	return entry.data, true
+}
+
+// set 存入缓存（拷贝数据，防止 buffer 复用问题）
+func (c *statusCache) set(key string, data []byte) {
+	buf := make([]byte, len(data))
+	copy(buf, data)
+
+	now := time.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// 容量限制：超出时清理过期条目
+	if len(c.entries) >= c.maxSize {
+		for k, v := range c.entries {
+			if now.After(v.expireAt) {
+				delete(c.entries, k)
+			}
+		}
+	}
+
+	// 仍然超出则跳过写入（防止 DoS）
+	if len(c.entries) >= c.maxSize {
+		return
+	}
+
+	c.entries[key] = &cacheEntry{
+		data:     buf,
+		expireAt: now.Add(c.ttl),
+	}
+}
+
+// load 获取缓存，未命中时用 singleflight 合并并发请求
+func (c *statusCache) load(key string, loader func() ([]byte, error)) ([]byte, error) {
+	// 先检查缓存
+	if data, ok := c.get(key); ok {
+		return data, nil
+	}
+
+	// singleflight: 同 key 多请求只执行一次 loader
+	v, err, _ := c.sf.Do(key, func() (interface{}, error) {
+		// double check：可能在等待期间已被其他 goroutine 填充
+		if data, ok := c.get(key); ok {
+			return data, nil
+		}
+
+		fresh, err := loader()
+		if err != nil {
+			return nil, err // 错误不缓存
+		}
+
+		c.set(key, fresh)
+		return fresh, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return v.([]byte), nil
+}
+
 // Handler API处理器
 type Handler struct {
 	storage storage.Storage
 	config  *config.AppConfig
-	cfgMu   sync.RWMutex // 保护config的并发访问
+	cfgMu   sync.RWMutex   // 保护config的并发访问
+	cache   *statusCache   // API 响应缓存
 }
 
 // NewHandler 创建处理器
@@ -28,6 +135,7 @@ func NewHandler(store storage.Storage, cfg *config.AppConfig) *Handler {
 	return &Handler{
 		storage: store,
 		config:  cfg,
+		cache:   newStatusCache(30*time.Second, 100), // 30 秒缓存，最多 100 条
 	}
 }
 
@@ -59,14 +167,42 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	qProvider := strings.ToLower(strings.TrimSpace(c.DefaultQuery("provider", "all")))
 	qService := c.DefaultQuery("service", "all")
 
-	// 解析时间范围
-	since, err := h.parsePeriod(period)
-	if err != nil {
+	// 验证 period 参数
+	if _, err := h.parsePeriod(period); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("无效的时间范围: %s", period),
 		})
 		return
 	}
+
+	// 构建缓存 key（使用明确的分隔符避免碰撞）
+	cacheKey := fmt.Sprintf("p=%s|prov=%s|svc=%s", period, qProvider, qService)
+
+	// 使用缓存（singleflight 防止缓存击穿）
+	// 注意：使用独立 context，避免单个请求取消影响其他等待的请求
+	data, err := h.cache.load(cacheKey, func() ([]byte, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return h.queryAndSerialize(ctx, period, qProvider, qService)
+	})
+
+	if err != nil {
+		log.Printf("[API] GetStatus 失败 key=%s error=%v", cacheKey, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("查询失败: %v", err),
+		})
+		return
+	}
+
+	// CDN 缓存头：Cloudflare 遵守 s-maxage，浏览器遵守 max-age
+	c.Header("Cache-Control", "public, max-age=60, s-maxage=60")
+	c.Header("Content-Type", "application/json; charset=utf-8")
+	c.Writer.Write(data)
+}
+
+// queryAndSerialize 查询数据库并序列化为 JSON（缓存 miss 时调用）
+func (h *Handler) queryAndSerialize(ctx context.Context, period, qProvider, qService string) ([]byte, error) {
+	since, _ := h.parsePeriod(period) // 已在调用前验证
 
 	// 获取配置副本（线程安全）
 	h.cfgMu.RLock()
@@ -77,7 +213,7 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	h.cfgMu.RUnlock()
 
 	// 构建 slug -> provider 映射（slug作为provider的路由别名）
-	slugToProvider := make(map[string]string) // slug -> normalized provider
+	slugToProvider := make(map[string]string)
 	for _, task := range monitors {
 		normalizedProvider := strings.ToLower(strings.TrimSpace(task.Provider))
 		slugToProvider[task.ProviderSlug] = normalizedProvider
@@ -94,36 +230,33 @@ func (h *Handler) GetStatus(c *gin.Context) {
 
 	// 根据配置选择串行或并发查询
 	var response []MonitorResult
+	var err error
 	var mode string
-	baseCtx := c.Request.Context()
+
 	if enableConcurrent {
 		mode = "concurrent"
-		response, err = h.getStatusConcurrent(baseCtx, filtered, since, period, degradedWeight, concurrentLimit)
+		response, err = h.getStatusConcurrent(ctx, filtered, since, period, degradedWeight, concurrentLimit)
 	} else {
 		mode = "serial"
-		response, err = h.getStatusSerial(baseCtx, filtered, since, period, degradedWeight)
+		response, err = h.getStatusSerial(ctx, filtered, since, period, degradedWeight)
 	}
 
 	if err != nil {
-		log.Printf("[API] GetStatus 失败 mode=%s monitors=%d period=%s error=%v", mode, len(filtered), period, err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": fmt.Sprintf("查询失败: %v", err),
-		})
-		return
+		return nil, err
 	}
 
-	log.Printf("[API] GetStatus 成功 mode=%s monitors=%d period=%s count=%d", mode, len(filtered), period, len(response))
+	log.Printf("[API] GetStatus 查询 mode=%s monitors=%d period=%s count=%d", mode, len(filtered), period, len(response))
 
-	// CDN 缓存头：Cloudflare 遵守 s-maxage，浏览器遵守 max-age
-	c.Header("Cache-Control", "public, max-age=60, s-maxage=60")
-
-	c.JSON(http.StatusOK, gin.H{
+	// 序列化为 JSON
+	result := gin.H{
 		"meta": gin.H{
 			"period": period,
 			"count":  len(response),
 		},
 		"data": response,
-	})
+	}
+
+	return json.Marshal(result)
 }
 
 // filterMonitors 过滤并去重监控项
