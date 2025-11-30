@@ -1,7 +1,10 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import App from './App';
-import ProviderPage from './pages/ProviderPage';
 import { useSyncLanguage } from './hooks/useSyncLanguage';
+
+// 路由级代码分割：懒加载页面组件
+const App = lazy(() => import('./App'));
+const ProviderPage = lazy(() => import('./pages/ProviderPage'));
 
 /**
  * 语言布局组件
@@ -43,33 +46,35 @@ function LanguageLayout({ lang }: LanguageLayoutProps) {
  */
 export default function AppRouter() {
   return (
-    <Routes>
-      {/* 中文默认路径（无前缀） */}
-      <Route element={<LanguageLayout />}>
-        <Route index element={<App />} />
-        <Route path="p/:provider" element={<ProviderPage />} />
-      </Route>
+    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>加载中...</div>}>
+      <Routes>
+        {/* 中文默认路径（无前缀） */}
+        <Route element={<LanguageLayout />}>
+          <Route index element={<App />} />
+          <Route path="p/:provider" element={<ProviderPage />} />
+        </Route>
 
-      {/* 英文路径 */}
-      <Route path="en" element={<LanguageLayout lang="en" />}>
-        <Route index element={<App />} />
-        <Route path="p/:provider" element={<ProviderPage />} />
-      </Route>
+        {/* 英文路径 */}
+        <Route path="en" element={<LanguageLayout lang="en" />}>
+          <Route index element={<App />} />
+          <Route path="p/:provider" element={<ProviderPage />} />
+        </Route>
 
-      {/* 俄文路径 */}
-      <Route path="ru" element={<LanguageLayout lang="ru" />}>
-        <Route index element={<App />} />
-        <Route path="p/:provider" element={<ProviderPage />} />
-      </Route>
+        {/* 俄文路径 */}
+        <Route path="ru" element={<LanguageLayout lang="ru" />}>
+          <Route index element={<App />} />
+          <Route path="p/:provider" element={<ProviderPage />} />
+        </Route>
 
-      {/* 日文路径 */}
-      <Route path="ja" element={<LanguageLayout lang="ja" />}>
-        <Route index element={<App />} />
-        <Route path="p/:provider" element={<ProviderPage />} />
-      </Route>
+        {/* 日文路径 */}
+        <Route path="ja" element={<LanguageLayout lang="ja" />}>
+          <Route index element={<App />} />
+          <Route path="p/:provider" element={<ProviderPage />} />
+        </Route>
 
-      {/* 捕获所有未匹配路径，重定向到根 */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* 捕获所有未匹配路径，重定向到根 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
