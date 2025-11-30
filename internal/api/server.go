@@ -88,6 +88,10 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 	// 注册 API 路由
 	router.GET("/api/status", handler.GetStatus)
 
+	// SEO 路由
+	router.GET("/sitemap.xml", handler.GetSitemap)
+	router.GET("/robots.txt", handler.GetRobots)
+
 	// 版本信息 API
 	router.GET("/api/version", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")

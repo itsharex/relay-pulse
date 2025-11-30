@@ -425,3 +425,142 @@ func incrementStatusCount(counts *storage.StatusCounts, status int, subStatus st
 		counts.Missing++
 	}
 }
+
+// GetSitemap 生成 sitemap.xml
+func (h *Handler) GetSitemap(c *gin.Context) {
+	// 获取配置副本
+	h.cfgMu.RLock()
+	monitors := h.config.Monitors
+	h.cfgMu.RUnlock()
+
+	// 提取唯一的 provider slugs
+	providerSlugs := h.extractUniqueProviderSlugs(monitors)
+
+	// 构建 sitemap XML
+	sitemap := h.buildSitemapXML(providerSlugs)
+
+	c.Header("Content-Type", "application/xml; charset=utf-8")
+	c.Header("Cache-Control", "public, max-age=3600") // 缓存 1 小时
+	c.String(http.StatusOK, sitemap)
+}
+
+// extractUniqueProviderSlugs 从监控配置中提取唯一的 provider slugs
+func (h *Handler) extractUniqueProviderSlugs(monitors []config.ServiceConfig) []string {
+	slugSet := make(map[string]bool)
+	var slugs []string
+
+	for _, task := range monitors {
+		slug := task.ProviderSlug
+		if slug == "" {
+			slug = strings.ToLower(strings.TrimSpace(task.Provider))
+		}
+
+		if !slugSet[slug] {
+			slugSet[slug] = true
+			slugs = append(slugs, slug)
+		}
+	}
+
+	return slugs
+}
+
+// buildSitemapXML 构建 sitemap.xml 内容
+func (h *Handler) buildSitemapXML(providerSlugs []string) string {
+	baseURL := "https://relaypulse.top"
+	languages := []struct {
+		code string // hreflang 语言码
+		path string // URL 路径前缀
+	}{
+		{"zh-Hans", ""},   // 中文默认无前缀
+		{"en", "en"},      // 英文
+		{"ru", "ru"},      // 俄文
+		{"ja", "ja"},      // 日文
+	}
+
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
+	sb.WriteString("\n")
+	sb.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"`)
+	sb.WriteString("\n")
+	sb.WriteString(`        xmlns:xhtml="http://www.w3.org/1999/xhtml">`)
+	sb.WriteString("\n")
+
+	// 生成首页 URL（4 个语言版本）
+	for _, lang := range languages {
+		sb.WriteString("  <url>\n")
+
+		// 生成 loc
+		if lang.path == "" {
+			sb.WriteString(fmt.Sprintf("    <loc>%s/</loc>\n", baseURL))
+		} else {
+			sb.WriteString(fmt.Sprintf("    <loc>%s/%s/</loc>\n", baseURL, lang.path))
+		}
+
+		// 生成 hreflang 链接（指向所有语言版本）
+		for _, altLang := range languages {
+			var href string
+			if altLang.path == "" {
+				href = fmt.Sprintf("%s/", baseURL)
+			} else {
+				href = fmt.Sprintf("%s/%s/", baseURL, altLang.path)
+			}
+			sb.WriteString(fmt.Sprintf(`    <xhtml:link rel="alternate" hreflang="%s" href="%s"/>`+"\n", altLang.code, href))
+		}
+
+		// x-default 指向中文首页
+		sb.WriteString(fmt.Sprintf(`    <xhtml:link rel="alternate" hreflang="x-default" href="%s/"/>`+"\n", baseURL))
+
+		sb.WriteString("    <priority>1.0</priority>\n")
+		sb.WriteString("    <changefreq>daily</changefreq>\n")
+		sb.WriteString("  </url>\n")
+	}
+
+	// 生成服务商页面 URL（每个 provider 4 个语言版本）
+	for _, slug := range providerSlugs {
+		for _, lang := range languages {
+			sb.WriteString("  <url>\n")
+
+			// 生成 loc
+			if lang.path == "" {
+				sb.WriteString(fmt.Sprintf("    <loc>%s/p/%s</loc>\n", baseURL, slug))
+			} else {
+				sb.WriteString(fmt.Sprintf("    <loc>%s/%s/p/%s</loc>\n", baseURL, lang.path, slug))
+			}
+
+			// 生成 hreflang 链接（指向所有语言版本）
+			for _, altLang := range languages {
+				var href string
+				if altLang.path == "" {
+					href = fmt.Sprintf("%s/p/%s", baseURL, slug)
+				} else {
+					href = fmt.Sprintf("%s/%s/p/%s", baseURL, altLang.path, slug)
+				}
+				sb.WriteString(fmt.Sprintf(`    <xhtml:link rel="alternate" hreflang="%s" href="%s"/>`+"\n", altLang.code, href))
+			}
+
+			// x-default 指向中文版本
+			sb.WriteString(fmt.Sprintf(`    <xhtml:link rel="alternate" hreflang="x-default" href="%s/p/%s"/>`+"\n", baseURL, slug))
+
+			sb.WriteString("    <priority>0.8</priority>\n")
+			sb.WriteString("    <changefreq>daily</changefreq>\n")
+			sb.WriteString("  </url>\n")
+		}
+	}
+
+	sb.WriteString("</urlset>\n")
+	return sb.String()
+}
+
+// GetRobots 生成 robots.txt
+func (h *Handler) GetRobots(c *gin.Context) {
+	robotsTxt := `User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://relaypulse.top/sitemap.xml
+`
+
+	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Header("Cache-Control", "public, max-age=86400") // 缓存 24 小时
+	c.String(http.StatusOK, robotsTxt)
+}
