@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -94,12 +95,13 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	// 根据配置选择串行或并发查询
 	var response []MonitorResult
 	var mode string
+	baseCtx := c.Request.Context()
 	if enableConcurrent {
 		mode = "concurrent"
-		response, err = h.getStatusConcurrent(c, filtered, since, period, degradedWeight, concurrentLimit)
+		response, err = h.getStatusConcurrent(baseCtx, filtered, since, period, degradedWeight, concurrentLimit)
 	} else {
 		mode = "serial"
-		response, err = h.getStatusSerial(filtered, since, period, degradedWeight)
+		response, err = h.getStatusSerial(baseCtx, filtered, since, period, degradedWeight)
 	}
 
 	if err != nil {
@@ -151,18 +153,19 @@ func (h *Handler) filterMonitors(monitors []config.ServiceConfig, provider, serv
 }
 
 // getStatusSerial 串行查询（原有逻辑）
-func (h *Handler) getStatusSerial(monitors []config.ServiceConfig, since time.Time, period string, degradedWeight float64) ([]MonitorResult, error) {
+func (h *Handler) getStatusSerial(ctx context.Context, monitors []config.ServiceConfig, since time.Time, period string, degradedWeight float64) ([]MonitorResult, error) {
 	var response []MonitorResult
+	store := h.storage.WithContext(ctx)
 
 	for _, task := range monitors {
 		// 获取最新记录
-		latest, err := h.storage.GetLatest(task.Provider, task.Service, task.Channel)
+		latest, err := store.GetLatest(task.Provider, task.Service, task.Channel)
 		if err != nil {
 			return nil, fmt.Errorf("查询失败 %s/%s/%s: %w", task.Provider, task.Service, task.Channel, err)
 		}
 
 		// 获取历史记录
-		history, err := h.storage.GetHistory(task.Provider, task.Service, task.Channel, since)
+		history, err := store.GetHistory(task.Provider, task.Service, task.Channel, since)
 		if err != nil {
 			return nil, fmt.Errorf("查询历史失败 %s/%s/%s: %w", task.Provider, task.Service, task.Channel, err)
 		}
@@ -176,10 +179,11 @@ func (h *Handler) getStatusSerial(monitors []config.ServiceConfig, since time.Ti
 }
 
 // getStatusConcurrent 并发查询（使用 errgroup + 并发限制）
-func (h *Handler) getStatusConcurrent(c *gin.Context, monitors []config.ServiceConfig, since time.Time, period string, degradedWeight float64, limit int) ([]MonitorResult, error) {
+func (h *Handler) getStatusConcurrent(ctx context.Context, monitors []config.ServiceConfig, since time.Time, period string, degradedWeight float64, limit int) ([]MonitorResult, error) {
 	// 使用请求的 context（支持取消）
-	g, _ := errgroup.WithContext(c.Request.Context())
+	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(limit) // 限制最大并发度
+	store := h.storage.WithContext(gctx)
 
 	// 预分配结果数组（保持顺序）
 	results := make([]MonitorResult, len(monitors))
@@ -188,13 +192,13 @@ func (h *Handler) getStatusConcurrent(c *gin.Context, monitors []config.ServiceC
 		i, task := i, task // 捕获循环变量
 		g.Go(func() error {
 			// 获取最新记录
-			latest, err := h.storage.GetLatest(task.Provider, task.Service, task.Channel)
+			latest, err := store.GetLatest(task.Provider, task.Service, task.Channel)
 			if err != nil {
 				return fmt.Errorf("GetLatest %s/%s/%s: %w", task.Provider, task.Service, task.Channel, err)
 			}
 
 			// 获取历史记录
-			history, err := h.storage.GetHistory(task.Provider, task.Service, task.Channel, since)
+			history, err := store.GetHistory(task.Provider, task.Service, task.Channel, since)
 			if err != nil {
 				return fmt.Errorf("GetHistory %s/%s/%s: %w", task.Provider, task.Service, task.Channel, err)
 			}

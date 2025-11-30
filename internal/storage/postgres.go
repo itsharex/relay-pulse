@@ -71,8 +71,28 @@ func NewPostgresStorage(cfg *config.PostgresConfig) (*PostgresStorage, error) {
 	}, nil
 }
 
+// WithContext 返回绑定指定 context 的存储实例
+func (s *PostgresStorage) WithContext(ctx context.Context) Storage {
+	if ctx == nil {
+		return s
+	}
+	return &PostgresStorage{
+		pool: s.pool,
+		ctx:  ctx,
+	}
+}
+
+// effectiveCtx 返回有效的 context
+func (s *PostgresStorage) effectiveCtx() context.Context {
+	if s.ctx != nil {
+		return s.ctx
+	}
+	return context.Background()
+}
+
 // Init 初始化数据库表
 func (s *PostgresStorage) Init() error {
+	ctx := s.effectiveCtx()
 	schema := `
 	CREATE TABLE IF NOT EXISTS probe_history (
 		id BIGSERIAL PRIMARY KEY,
@@ -86,7 +106,7 @@ func (s *PostgresStorage) Init() error {
 	);
 	`
 
-	_, err := s.pool.Exec(s.ctx, schema)
+	_, err := s.pool.Exec(ctx, schema)
 	if err != nil {
 		return fmt.Errorf("初始化 PostgreSQL 数据库失败: %w", err)
 	}
@@ -126,7 +146,7 @@ func (s *PostgresStorage) Init() error {
 	ON probe_history (provider, service, channel, timestamp DESC)
 	INCLUDE (status, sub_status, latency, id);
 	`
-	if _, err := s.pool.Exec(s.ctx, indexSQL); err != nil {
+	if _, err := s.pool.Exec(ctx, indexSQL); err != nil {
 		return fmt.Errorf("创建覆盖索引失败: %w", err)
 	}
 
@@ -135,6 +155,7 @@ func (s *PostgresStorage) Init() error {
 
 // ensureSubStatusColumn 在旧表上添加 sub_status 列（向后兼容）
 func (s *PostgresStorage) ensureSubStatusColumn() error {
+	ctx := s.effectiveCtx()
 	// PostgreSQL 使用 information_schema 查询列是否存在
 	checkQuery := `
 		SELECT COUNT(*)
@@ -143,7 +164,7 @@ func (s *PostgresStorage) ensureSubStatusColumn() error {
 	`
 
 	var count int
-	err := s.pool.QueryRow(s.ctx, checkQuery).Scan(&count)
+	err := s.pool.QueryRow(ctx, checkQuery).Scan(&count)
 	if err != nil {
 		return fmt.Errorf("查询 PostgreSQL 表结构失败: %w", err)
 	}
@@ -154,7 +175,7 @@ func (s *PostgresStorage) ensureSubStatusColumn() error {
 
 	// 添加列
 	alterQuery := `ALTER TABLE probe_history ADD COLUMN sub_status TEXT NOT NULL DEFAULT ''`
-	if _, err := s.pool.Exec(s.ctx, alterQuery); err != nil {
+	if _, err := s.pool.Exec(ctx, alterQuery); err != nil {
 		return fmt.Errorf("添加 sub_status 列失败: %w", err)
 	}
 
@@ -164,6 +185,7 @@ func (s *PostgresStorage) ensureSubStatusColumn() error {
 
 // ensureChannelColumn 在旧表上添加 channel 列（向后兼容）
 func (s *PostgresStorage) ensureChannelColumn() error {
+	ctx := s.effectiveCtx()
 	checkQuery := `
 		SELECT COUNT(*)
 		FROM information_schema.columns
@@ -171,7 +193,7 @@ func (s *PostgresStorage) ensureChannelColumn() error {
 	`
 
 	var count int
-	err := s.pool.QueryRow(s.ctx, checkQuery).Scan(&count)
+	err := s.pool.QueryRow(ctx, checkQuery).Scan(&count)
 	if err != nil {
 		return fmt.Errorf("查询 PostgreSQL 表结构失败: %w", err)
 	}
@@ -182,7 +204,7 @@ func (s *PostgresStorage) ensureChannelColumn() error {
 
 	// 添加列
 	alterQuery := `ALTER TABLE probe_history ADD COLUMN channel TEXT NOT NULL DEFAULT ''`
-	if _, err := s.pool.Exec(s.ctx, alterQuery); err != nil {
+	if _, err := s.pool.Exec(ctx, alterQuery); err != nil {
 		return fmt.Errorf("添加 channel 列失败: %w", err)
 	}
 
@@ -192,8 +214,9 @@ func (s *PostgresStorage) ensureChannelColumn() error {
 
 // MigrateChannelData 根据配置将 channel 为空的旧数据迁移到指定 channel
 func (s *PostgresStorage) MigrateChannelData(mappings []ChannelMigrationMapping) error {
+	ctx := s.effectiveCtx()
 	var pending int
-	if err := s.pool.QueryRow(s.ctx, `SELECT COUNT(*) FROM probe_history WHERE channel = ''`).Scan(&pending); err != nil {
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM probe_history WHERE channel = ''`).Scan(&pending); err != nil {
 		return fmt.Errorf("检测 PostgreSQL channel 迁移需求失败: %w", err)
 	}
 
@@ -215,7 +238,7 @@ func (s *PostgresStorage) MigrateChannelData(mappings []ChannelMigrationMapping)
 		}
 
 		tag, err := s.pool.Exec(
-			s.ctx,
+			ctx,
 			`UPDATE probe_history SET channel = $1 WHERE channel = '' AND provider = $2 AND service = $3`,
 			mapping.Channel, mapping.Provider, mapping.Service,
 		)
@@ -256,13 +279,14 @@ func (s *PostgresStorage) Close() error {
 
 // SaveRecord 保存探测记录
 func (s *PostgresStorage) SaveRecord(record *ProbeRecord) error {
+	ctx := s.effectiveCtx()
 	query := `
 		INSERT INTO probe_history (provider, service, channel, status, sub_status, latency, timestamp)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
-	err := s.pool.QueryRow(s.ctx, query,
+	err := s.pool.QueryRow(ctx, query,
 		record.Provider,
 		record.Service,
 		record.Channel,
@@ -281,6 +305,7 @@ func (s *PostgresStorage) SaveRecord(record *ProbeRecord) error {
 
 // GetLatest 获取最新记录
 func (s *PostgresStorage) GetLatest(provider, service, channel string) (*ProbeRecord, error) {
+	ctx := s.effectiveCtx()
 	query := `
 		SELECT id, provider, service, channel, status, sub_status, latency, timestamp
 		FROM probe_history
@@ -291,7 +316,7 @@ func (s *PostgresStorage) GetLatest(provider, service, channel string) (*ProbeRe
 
 	var record ProbeRecord
 	var subStatusStr string
-	err := s.pool.QueryRow(s.ctx, query, provider, service, channel).Scan(
+	err := s.pool.QueryRow(ctx, query, provider, service, channel).Scan(
 		&record.ID,
 		&record.Provider,
 		&record.Service,
@@ -316,14 +341,17 @@ func (s *PostgresStorage) GetLatest(provider, service, channel string) (*ProbeRe
 
 // GetHistory 获取历史记录
 func (s *PostgresStorage) GetHistory(provider, service, channel string, since time.Time) ([]*ProbeRecord, error) {
+	ctx := s.effectiveCtx()
+	// 使用 ORDER BY timestamp DESC 以利用索引（索引是 timestamp DESC）
+	// 返回前在 Go 代码中反转为时间升序
 	query := `
 		SELECT id, provider, service, channel, status, sub_status, latency, timestamp
 		FROM probe_history
 		WHERE provider = $1 AND service = $2 AND channel = $3 AND timestamp >= $4
-		ORDER BY timestamp ASC
+		ORDER BY timestamp DESC
 	`
 
-	rows, err := s.pool.Query(s.ctx, query, provider, service, channel, since.Unix())
+	rows, err := s.pool.Query(ctx, query, provider, service, channel, since.Unix())
 	if err != nil {
 		return nil, fmt.Errorf("查询 PostgreSQL 历史记录失败: %w", err)
 	}
@@ -355,15 +383,21 @@ func (s *PostgresStorage) GetHistory(provider, service, channel string, since ti
 		return nil, fmt.Errorf("迭代 PostgreSQL 记录失败: %w", err)
 	}
 
+	// DESC 取数利用索引，返回前翻转为时间升序
+	for i, j := 0, len(records)-1; i < j; i, j = i+1, j-1 {
+		records[i], records[j] = records[j], records[i]
+	}
+
 	return records, nil
 }
 
 // CleanOldRecords 清理旧记录
 func (s *PostgresStorage) CleanOldRecords(days int) error {
+	ctx := s.effectiveCtx()
 	cutoff := time.Now().AddDate(0, 0, -days).Unix()
 	query := `DELETE FROM probe_history WHERE timestamp < $1`
 
-	result, err := s.pool.Exec(s.ctx, query, cutoff)
+	result, err := s.pool.Exec(ctx, query, cutoff)
 	if err != nil {
 		return fmt.Errorf("清理 PostgreSQL 旧记录失败: %w", err)
 	}

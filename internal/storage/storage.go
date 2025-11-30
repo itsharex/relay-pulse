@@ -1,6 +1,9 @@
 package storage
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // SubStatus 细分状态码（字符串形式，便于扩展和前后端统一）
 type SubStatus string
@@ -78,6 +81,10 @@ type Storage interface {
 
 	// Close 关闭存储
 	Close() error
+
+	// WithContext 返回绑定指定 context 的存储实例
+	// 用于支持请求级别的超时和取消，不修改原实例，便于并发请求安全复用
+	WithContext(ctx context.Context) Storage
 
 	// SaveRecord 保存探测记录
 	SaveRecord(record *ProbeRecord) error

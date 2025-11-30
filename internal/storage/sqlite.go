@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -11,7 +12,8 @@ import (
 
 // SQLiteStorage SQLite存储实现
 type SQLiteStorage struct {
-	db *sql.DB
+	db  *sql.DB
+	ctx context.Context
 }
 
 // NewSQLiteStorage 创建SQLite存储
@@ -28,11 +30,31 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(time.Hour)
 
-	return &SQLiteStorage{db: db}, nil
+	return &SQLiteStorage{db: db, ctx: context.Background()}, nil
+}
+
+// WithContext 返回绑定指定 context 的存储实例
+func (s *SQLiteStorage) WithContext(ctx context.Context) Storage {
+	if ctx == nil {
+		return s
+	}
+	return &SQLiteStorage{
+		db:  s.db,
+		ctx: ctx,
+	}
+}
+
+// effectiveCtx 返回有效的 context
+func (s *SQLiteStorage) effectiveCtx() context.Context {
+	if s.ctx != nil {
+		return s.ctx
+	}
+	return context.Background()
 }
 
 // Init 初始化数据库表
 func (s *SQLiteStorage) Init() error {
+	ctx := s.effectiveCtx()
 	schema := `
 	CREATE TABLE IF NOT EXISTS probe_history (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,7 +68,7 @@ func (s *SQLiteStorage) Init() error {
 	);
 	`
 
-	_, err := s.db.Exec(schema)
+	_, err := s.db.ExecContext(ctx, schema)
 	if err != nil {
 		return fmt.Errorf("初始化数据库失败: %w", err)
 	}
@@ -83,7 +105,7 @@ func (s *SQLiteStorage) Init() error {
 	CREATE INDEX IF NOT EXISTS idx_probe_history_psc_ts_cover
 	ON probe_history(provider, service, channel, timestamp DESC, status, sub_status, latency);
 	`
-	if _, err := s.db.Exec(indexSQL); err != nil {
+	if _, err := s.db.ExecContext(ctx, indexSQL); err != nil {
 		return fmt.Errorf("创建覆盖索引失败: %w", err)
 	}
 
@@ -92,7 +114,8 @@ func (s *SQLiteStorage) Init() error {
 
 // ensureSubStatusColumn 在旧表上添加 sub_status 列（向后兼容）
 func (s *SQLiteStorage) ensureSubStatusColumn() error {
-	rows, err := s.db.Query(`PRAGMA table_info(probe_history)`)
+	ctx := s.effectiveCtx()
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(probe_history)`)
 	if err != nil {
 		return fmt.Errorf("查询表结构失败: %w", err)
 	}
@@ -126,7 +149,7 @@ func (s *SQLiteStorage) ensureSubStatusColumn() error {
 	}
 
 	// 添加列
-	if _, err := s.db.Exec(`ALTER TABLE probe_history ADD COLUMN sub_status TEXT NOT NULL DEFAULT ''`); err != nil {
+	if _, err := s.db.ExecContext(ctx, `ALTER TABLE probe_history ADD COLUMN sub_status TEXT NOT NULL DEFAULT ''`); err != nil {
 		return fmt.Errorf("添加 sub_status 列失败: %w", err)
 	}
 
@@ -136,7 +159,8 @@ func (s *SQLiteStorage) ensureSubStatusColumn() error {
 
 // ensureChannelColumn 在旧表上添加 channel 列（向后兼容）
 func (s *SQLiteStorage) ensureChannelColumn() error {
-	rows, err := s.db.Query(`PRAGMA table_info(probe_history)`)
+	ctx := s.effectiveCtx()
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(probe_history)`)
 	if err != nil {
 		return fmt.Errorf("查询表结构失败: %w", err)
 	}
@@ -170,7 +194,7 @@ func (s *SQLiteStorage) ensureChannelColumn() error {
 	}
 
 	// 添加列
-	if _, err := s.db.Exec(`ALTER TABLE probe_history ADD COLUMN channel TEXT NOT NULL DEFAULT ''`); err != nil {
+	if _, err := s.db.ExecContext(ctx, `ALTER TABLE probe_history ADD COLUMN channel TEXT NOT NULL DEFAULT ''`); err != nil {
 		return fmt.Errorf("添加 channel 列失败: %w", err)
 	}
 
@@ -180,8 +204,9 @@ func (s *SQLiteStorage) ensureChannelColumn() error {
 
 // MigrateChannelData 根据配置将 channel 为空的旧数据迁移到指定 channel
 func (s *SQLiteStorage) MigrateChannelData(mappings []ChannelMigrationMapping) error {
+	ctx := s.effectiveCtx()
 	var pending int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM probe_history WHERE channel = ''`).Scan(&pending); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM probe_history WHERE channel = ''`).Scan(&pending); err != nil {
 		return fmt.Errorf("检测 channel 迁移需求失败: %w", err)
 	}
 
@@ -202,7 +227,8 @@ func (s *SQLiteStorage) MigrateChannelData(mappings []ChannelMigrationMapping) e
 			continue
 		}
 
-		result, err := s.db.Exec(
+		result, err := s.db.ExecContext(
+			ctx,
 			`UPDATE probe_history SET channel = ? WHERE channel = '' AND provider = ? AND service = ?`,
 			mapping.Channel, mapping.Provider, mapping.Service,
 		)
@@ -246,12 +272,13 @@ func (s *SQLiteStorage) Close() error {
 
 // SaveRecord 保存探测记录
 func (s *SQLiteStorage) SaveRecord(record *ProbeRecord) error {
+	ctx := s.effectiveCtx()
 	query := `
 		INSERT INTO probe_history (provider, service, channel, status, sub_status, latency, timestamp)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
-	result, err := s.db.Exec(query,
+	result, err := s.db.ExecContext(ctx, query,
 		record.Provider,
 		record.Service,
 		record.Channel,
@@ -272,6 +299,7 @@ func (s *SQLiteStorage) SaveRecord(record *ProbeRecord) error {
 
 // GetLatest 获取最新记录
 func (s *SQLiteStorage) GetLatest(provider, service, channel string) (*ProbeRecord, error) {
+	ctx := s.effectiveCtx()
 	query := `
 		SELECT id, provider, service, channel, status, sub_status, latency, timestamp
 		FROM probe_history
@@ -282,7 +310,7 @@ func (s *SQLiteStorage) GetLatest(provider, service, channel string) (*ProbeReco
 
 	var record ProbeRecord
 	var subStatusStr string
-	err := s.db.QueryRow(query, provider, service, channel).Scan(
+	err := s.db.QueryRowContext(ctx, query, provider, service, channel).Scan(
 		&record.ID,
 		&record.Provider,
 		&record.Service,
@@ -307,14 +335,17 @@ func (s *SQLiteStorage) GetLatest(provider, service, channel string) (*ProbeReco
 
 // GetHistory 获取历史记录
 func (s *SQLiteStorage) GetHistory(provider, service, channel string, since time.Time) ([]*ProbeRecord, error) {
+	ctx := s.effectiveCtx()
+	// 使用 ORDER BY timestamp DESC 以利用索引（索引是 timestamp DESC）
+	// 返回前在 Go 代码中反转为时间升序
 	query := `
 		SELECT id, provider, service, channel, status, sub_status, latency, timestamp
 		FROM probe_history
 		WHERE provider = ? AND service = ? AND channel = ? AND timestamp >= ?
-		ORDER BY timestamp ASC
+		ORDER BY timestamp DESC
 	`
 
-	rows, err := s.db.Query(query, provider, service, channel, since.Unix())
+	rows, err := s.db.QueryContext(ctx, query, provider, service, channel, since.Unix())
 	if err != nil {
 		return nil, fmt.Errorf("查询历史记录失败: %w", err)
 	}
@@ -346,15 +377,21 @@ func (s *SQLiteStorage) GetHistory(provider, service, channel string, since time
 		return nil, fmt.Errorf("迭代记录失败: %w", err)
 	}
 
+	// DESC 取数利用索引，返回前翻转为时间升序
+	for i, j := 0, len(records)-1; i < j; i, j = i+1, j-1 {
+		records[i], records[j] = records[j], records[i]
+	}
+
 	return records, nil
 }
 
 // CleanOldRecords 清理旧记录
 func (s *SQLiteStorage) CleanOldRecords(days int) error {
+	ctx := s.effectiveCtx()
 	cutoff := time.Now().AddDate(0, 0, -days).Unix()
 	query := `DELETE FROM probe_history WHERE timestamp < ?`
 
-	result, err := s.db.Exec(query, cutoff)
+	result, err := s.db.ExecContext(ctx, query, cutoff)
 	if err != nil {
 		return fmt.Errorf("清理旧记录失败: %w", err)
 	}

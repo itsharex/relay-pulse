@@ -152,6 +152,37 @@ storage:
   - **串行模式**（`enable_concurrent_query=false`）：`25` / `5`
 - 如果已配置，则使用配置值（不会自动调整）
 
+**连接池大小建议**：
+
+| 配置项 | 计算公式 | 示例 |
+|--------|---------|------|
+| `max_open_conns` | `max_concurrency + concurrent_query_limit × 并发请求数 + 缓冲` | `15 + 10 × 2 + 5 = 40` |
+| `max_idle_conns` | `max_open_conns / 3 ~ 5` | `40 / 4 = 10` |
+
+- **`max_concurrency`**：探测并发数（配置中的 `max_concurrency`，默认 15）
+- **`concurrent_query_limit`**：API 查询并发数（配置中的 `concurrent_query_limit`，默认 10）
+- **并发请求数**：预期同时访问 `/api/status` 的用户数
+
+**示例配置**（42 个监控项，生产环境）：
+
+```yaml
+# 探测配置
+max_concurrency: 15        # 探测并发数
+stagger_probes: true       # 错峰调度
+
+# API 查询优化
+enable_concurrent_query: true
+concurrent_query_limit: 10
+
+# PostgreSQL 连接池
+storage:
+  type: "postgres"
+  postgres:
+    max_open_conns: 40     # 15 + 10 × 2 + 5 = 40
+    max_idle_conns: 10
+    conn_max_lifetime: "1h"
+```
+
 **适用场景**:
 - Kubernetes 多副本部署
 - 高可用需求
