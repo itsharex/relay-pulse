@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"html"
+	"regexp"
 	"strings"
 
 	"monitor/internal/config"
@@ -31,13 +33,25 @@ var pathToLangCode = map[string]string{
 	"ja": "ja-JP",
 }
 
+// providerSlugRegex 用于校验 slug 格式（小写字母、数字、连字符）
+var providerSlugRegex = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+
+// isValidProviderSlug 校验 provider slug 是否合法
+func isValidProviderSlug(slug string) bool {
+	if slug == "" || len(slug) > 100 {
+		return false
+	}
+	return providerSlugRegex.MatchString(slug)
+}
+
 // MetaData 页面 Meta 数据
 type MetaData struct {
-	Title       string
-	Description string
-	Language    Language
-	ProviderName string // 服务商名称（仅服务商页面）
-	IsProviderPage bool // 是否为服务商页面
+	Title          string
+	Description    string
+	Language       Language
+	Slug           string // URL slug（仅服务商页面，用于构造链接）
+	ProviderName   string // 服务商显示名称（仅服务商页面，用于文案）
+	IsProviderPage bool   // 是否为服务商页面
 }
 
 // PageMeta 生成的完整 meta 标签
@@ -90,26 +104,27 @@ func getLanguageByCode(code string) Language {
 }
 
 // getMetaContent 根据语言和页面类型获取 meta 内容
-func getMetaContent(langCode string, providerName string, isProviderPage bool) MetaData {
+func getMetaContent(langCode string, slug string, providerName string, isProviderPage bool) MetaData {
 	lang := getLanguageByCode(langCode)
 
 	var title, description string
 
 	if isProviderPage {
-		// 服务商页面
+		// 服务商页面 - 使用 HTML 转义防止 XSS
+		escapedName := html.EscapeString(providerName)
 		switch langCode {
 		case "zh-CN":
-			title = fmt.Sprintf("%s 服务可用性监控 - RelayPulse", providerName)
-			description = fmt.Sprintf("实时监控 %s 的 API 可用性、延迟和服务质量，查看历史稳定性数据和赞助链路状态。", providerName)
+			title = fmt.Sprintf("%s 服务可用性监控 - RelayPulse", escapedName)
+			description = fmt.Sprintf("实时监控 %s 的 API 可用性、延迟和服务质量，查看历史稳定性数据和赞助链路状态。", escapedName)
 		case "en-US":
-			title = fmt.Sprintf("%s Service Availability Monitoring - RelayPulse", providerName)
-			description = fmt.Sprintf("Monitor %s API availability, latency, and service quality in real time. View historical stability data and sponsored route status.", providerName)
+			title = fmt.Sprintf("%s Service Availability Monitoring - RelayPulse", escapedName)
+			description = fmt.Sprintf("Monitor %s API availability, latency, and service quality in real time. View historical stability data and sponsored route status.", escapedName)
 		case "ru-RU":
-			title = fmt.Sprintf("Мониторинг доступности сервиса %s - RelayPulse", providerName)
-			description = fmt.Sprintf("Мониторинг доступности API %s, задержки и качества обслуживания в реальном времени.", providerName)
+			title = fmt.Sprintf("Мониторинг доступности сервиса %s - RelayPulse", escapedName)
+			description = fmt.Sprintf("Мониторинг доступности API %s, задержки и качества обслуживания в реальном времени.", escapedName)
 		case "ja-JP":
-			title = fmt.Sprintf("%s サービス可用性監視 - RelayPulse", providerName)
-			description = fmt.Sprintf("%s の API 可用性、レイテンシ、サービス品質をリアルタイムで監視します。", providerName)
+			title = fmt.Sprintf("%s サービス可用性監視 - RelayPulse", escapedName)
+			description = fmt.Sprintf("%s の API 可用性、レイテンシ、サービス品質をリアルタイムで監視します。", escapedName)
 		}
 	} else {
 		// 首页
@@ -130,10 +145,11 @@ func getMetaContent(langCode string, providerName string, isProviderPage bool) M
 	}
 
 	return MetaData{
-		Title:       title,
-		Description: description,
-		Language:    lang,
-		ProviderName: providerName,
+		Title:          title,
+		Description:    description,
+		Language:       lang,
+		Slug:           slug,
+		ProviderName:   providerName,
 		IsProviderPage: isProviderPage,
 	}
 }
@@ -155,10 +171,11 @@ func generatePageMeta(meta MetaData, baseURL string, currentPath string) PageMet
 	for _, lang := range supportedLanguages {
 		var href string
 		if meta.IsProviderPage {
+			// 使用 slug 而非 ProviderName 构造 URL
 			if lang.PathPrefix == "" {
-				href = fmt.Sprintf("%s/p/%s", baseURL, meta.ProviderName)
+				href = fmt.Sprintf("%s/p/%s", baseURL, meta.Slug)
 			} else {
-				href = fmt.Sprintf("%s/%s/p/%s", baseURL, lang.PathPrefix, meta.ProviderName)
+				href = fmt.Sprintf("%s/%s/p/%s", baseURL, lang.PathPrefix, meta.Slug)
 			}
 		} else {
 			if lang.PathPrefix == "" {
@@ -170,9 +187,9 @@ func generatePageMeta(meta MetaData, baseURL string, currentPath string) PageMet
 		hreflangBuilder.WriteString(fmt.Sprintf(`    <link rel="alternate" hreflang="%s" href="%s">`+"\n", lang.HreflangTag, href))
 	}
 
-	// x-default 指向中文版本
+	// x-default 指向中文版本（使用 slug）
 	if meta.IsProviderPage {
-		hreflangBuilder.WriteString(fmt.Sprintf(`    <link rel="alternate" hreflang="x-default" href="%s/p/%s">`, baseURL, meta.ProviderName))
+		hreflangBuilder.WriteString(fmt.Sprintf(`    <link rel="alternate" hreflang="x-default" href="%s/p/%s">`, baseURL, meta.Slug))
 	} else {
 		hreflangBuilder.WriteString(fmt.Sprintf(`    <link rel="alternate" hreflang="x-default" href="%s/">`, baseURL))
 	}
@@ -247,29 +264,47 @@ func generatePageMeta(meta MetaData, baseURL string, currentPath string) PageMet
 }
 
 // injectMetaTags 在 index.html 中注入 meta 标签
-func injectMetaTags(indexHTML string, path string, cfg *config.AppConfig) string {
+// 返回 (html, isNotFound)，isNotFound 表示 provider 不存在
+func injectMetaTags(indexHTML string, path string, cfg *config.AppConfig) (string, bool) {
 	const baseURL = "https://relaypulse.top"
 
 	// 解析路径
 	langCode, providerSlug, isProviderPage := parseRequestPath(path)
 
-	// 如果是服务商页面，需要从配置中获取真实的 provider 名称
-	providerName := providerSlug
-	if isProviderPage && cfg != nil {
-		for _, monitor := range cfg.Monitors {
-			slug := monitor.ProviderSlug
-			if slug == "" {
-				slug = strings.ToLower(strings.TrimSpace(monitor.Provider))
+	// 如果是服务商页面，进行 slug 校验和存在性检查
+	providerName := ""
+	providerExists := false
+
+	if isProviderPage {
+		// 1. 校验 slug 格式（防止 XSS）
+		if !isValidProviderSlug(providerSlug) {
+			// slug 格式非法，返回 404
+			return inject404Meta(indexHTML, langCode), true
+		}
+
+		// 2. 从配置中查找 provider
+		if cfg != nil {
+			for _, monitor := range cfg.Monitors {
+				slug := monitor.ProviderSlug
+				if slug == "" {
+					slug = strings.ToLower(strings.TrimSpace(monitor.Provider))
+				}
+				if slug == providerSlug {
+					providerName = monitor.Provider
+					providerExists = true
+					break
+				}
 			}
-			if slug == providerSlug {
-				providerName = monitor.Provider
-				break
-			}
+		}
+
+		// 3. provider 不存在，返回 404
+		if !providerExists {
+			return inject404Meta(indexHTML, langCode), true
 		}
 	}
 
-	// 获取 meta 内容
-	metaData := getMetaContent(langCode, providerName, isProviderPage)
+	// 获取 meta 内容（传入 slug 和 displayName）
+	metaData := getMetaContent(langCode, providerSlug, providerName, isProviderPage)
 
 	// 生成完整 meta 标签
 	pageMeta := generatePageMeta(metaData, baseURL, path)
@@ -293,7 +328,39 @@ func injectMetaTags(indexHTML string, path string, cfg *config.AppConfig) string
 
 	html = strings.Replace(html, "</head>", additionalMeta+"  </head>", 1)
 
-	return html
+	return html, false
+}
+
+// inject404Meta 注入 404 页面的 meta 标签（noindex）
+func inject404Meta(indexHTML string, langCode string) string {
+	var title, description string
+	switch langCode {
+	case "zh-CN":
+		title = "页面未找到 - RelayPulse"
+		description = "您访问的服务商页面不存在"
+	case "en-US":
+		title = "Page Not Found - RelayPulse"
+		description = "The provider page you are looking for does not exist"
+	case "ru-RU":
+		title = "Страница не найдена - RelayPulse"
+		description = "Страница провайдера, которую вы ищете, не существует"
+	case "ja-JP":
+		title = "ページが見つかりません - RelayPulse"
+		description = "お探しのプロバイダーページは存在しません"
+	default:
+		title = "Page Not Found - RelayPulse"
+		description = "The provider page you are looking for does not exist"
+	}
+
+	htmlContent := indexHTML
+	htmlContent = replaceBetween(htmlContent, "<title>", "</title>", html.EscapeString(title))
+	htmlContent = replaceMetaDescription(htmlContent, html.EscapeString(description))
+
+	// 添加 noindex meta 标签
+	noindexMeta := `    <meta name="robots" content="noindex, nofollow">`
+	htmlContent = strings.Replace(htmlContent, "</head>", "\n"+noindexMeta+"\n  </head>", 1)
+
+	return htmlContent
 }
 
 // replaceBetween 替换两个标记之间的内容

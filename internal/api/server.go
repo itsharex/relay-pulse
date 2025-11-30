@@ -272,8 +272,13 @@ func setupStaticFiles(router *gin.Engine, handler *Handler) {
 		cfg := handler.config
 		handler.cfgMu.RUnlock()
 
-		html := injectMetaTags(string(data), path, cfg)
+		html, isNotFound := injectMetaTags(string(data), path, cfg)
 
-		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
+		// 如果是 404（provider 不存在），返回 404 状态码
+		if isNotFound {
+			c.Data(http.StatusNotFound, "text/html; charset=utf-8", []byte(html))
+		} else {
+			c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
+		}
 	})
 }
