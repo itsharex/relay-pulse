@@ -62,10 +62,16 @@ func (s *SQLiteStorage) Init() error {
 	// 在列迁移完成后创建索引
 	//
 	// 索引设计说明：
-	// - 此索引专为核心查询优化：GetLatest() 和 GetHistory()
+	// - 复合索引专为核心查询优化：GetLatest() 和 GetHistory()
 	// - 所有业务查询都包含完整的 (provider, service, channel) 等值条件
 	// - timestamp DESC 支持时间范围查询和排序，避免额外排序开销
+	// - 包含查询所需的所有字段（status, sub_status, latency），尽量减少回表
 	// - 列顺序遵循 B-Tree 最佳实践：等值列在前，范围/排序列在后
+	//
+	// 性能优化：
+	// - SQLite 不支持 INCLUDE 子句，使用复合索引模拟覆盖索引效果
+	// - 虽然索引会变大，但 SQLite 查询优化器可以利用索引减少数据页访问
+	// - 对于小型数据集（<1GB），性能提升明显
 	//
 	// ⚠️ 维护注意事项：
 	// - 如果未来新增"不带 channel 的高频查询"，需要重新评估索引策略
@@ -74,11 +80,11 @@ func (s *SQLiteStorage) Init() error {
 	//
 	// 性能验证：EXPLAIN QUERY PLAN SELECT ... WHERE provider=? AND service=? AND channel=? AND timestamp>=?
 	indexSQL := `
-	CREATE INDEX IF NOT EXISTS idx_provider_service_channel_timestamp
-	ON probe_history(provider, service, channel, timestamp DESC);
+	CREATE INDEX IF NOT EXISTS idx_probe_history_psc_ts_cover
+	ON probe_history(provider, service, channel, timestamp DESC, status, sub_status, latency);
 	`
 	if _, err := s.db.Exec(indexSQL); err != nil {
-		return fmt.Errorf("创建索引失败: %w", err)
+		return fmt.Errorf("创建覆盖索引失败: %w", err)
 	}
 
 	return nil
