@@ -9,18 +9,34 @@ import { StatusCard } from './components/StatusCard';
 import { Tooltip } from './components/Tooltip';
 import { Footer } from './components/Footer';
 import { useMonitorData } from './hooks/useMonitorData';
+import { useUrlState } from './hooks/useUrlState';
 import { trackPeriodChange, trackServiceFilter, trackEvent } from './utils/analytics';
-import type { ViewMode, SortConfig, TooltipState, ProcessedMonitorData } from './types';
+import type { TooltipState, ProcessedMonitorData } from './types';
 
 function App() {
   const { t, i18n } = useTranslation();
-  const [filterService, setFilterService] = useState('all');
-  const [filterProvider, setFilterProvider] = useState('all');
-  const [filterChannel, setFilterChannel] = useState('all');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [timeRange, setTimeRange] = useState('24h');
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'uptime', direction: 'desc' });
+
+  // 使用 URL 状态同步 Hook，支持收藏和分享
+  const [urlState, urlActions] = useUrlState();
+  const {
+    timeRange,
+    filterProvider,
+    filterService,
+    filterChannel,
+    filterCategory,
+    viewMode,
+    sortConfig,
+  } = urlState;
+  const {
+    setTimeRange,
+    setFilterProvider,
+    setFilterService,
+    setFilterChannel,
+    setFilterCategory,
+    setViewMode,
+    setSortConfig,
+  } = urlActions;
+
   const [tooltip, setTooltip] = useState<TooltipState>({
     show: false,
     x: 0,

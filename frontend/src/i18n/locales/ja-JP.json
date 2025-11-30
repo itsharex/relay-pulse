@@ -151,5 +151,12 @@
     "uptimeBlock": "稼働率 {{uptime}}%",
     "noDataBlock": "データなし",
     "changeLanguage": "言語を切り替え"
+  },
+  "share": {
+    "bookmark": "ブックマーク",
+    "share": "共有",
+    "bookmarkHint": "{{shortcut}} を押してブックマークに追加",
+    "linkCopied": "リンクをクリップボードにコピーしました",
+    "copyFailed": "コピーに失敗しました。リンクを手動でコピーしてください"
   }
 }

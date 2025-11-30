@@ -1,9 +1,11 @@
-import { Activity, CheckCircle, AlertTriangle, Sparkles, Globe } from 'lucide-react';
+import { Activity, CheckCircle, AlertTriangle, Sparkles, Globe, Bookmark, Share2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FEEDBACK_URLS } from '../constants';
 import { SUPPORTED_LANGUAGES, LANGUAGE_PATH_MAP, isSupportedLanguage, type SupportedLanguage } from '../i18n';
 import { FlagIcon } from './FlagIcon';
+import { useToast } from './Toast';
+import { shareCurrentPage, getBookmarkShortcut } from '../utils/share';
 
 interface HeaderProps {
   stats: {
@@ -17,6 +19,30 @@ export function Header({ stats }: HeaderProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToast();
+
+  // 处理收藏按钮点击
+  const handleBookmark = () => {
+    const shortcut = getBookmarkShortcut();
+    showToast(t('share.bookmarkHint', { shortcut }), 'info');
+  };
+
+  // 处理分享按钮点击
+  const handleShare = async () => {
+    const result = await shareCurrentPage();
+    if (result.method === 'cancelled') {
+      // 用户取消分享，静默处理
+      return;
+    }
+    if (result.success) {
+      if (result.method === 'copy') {
+        showToast(t('share.linkCopied'), 'success');
+      }
+      // Web Share API 成功时不需要提示，系统会处理
+    } else {
+      showToast(t('share.copyFailed'), 'error');
+    }
+  };
 
   // 语言简称显示（按钮和下拉项共用）
   const getLanguageShortLabel = (lang: string): string => {
@@ -131,6 +157,26 @@ export function Header({ stats }: HeaderProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* 收藏和分享按钮 */}
+        <div className="flex gap-1">
+          <button
+            onClick={handleBookmark}
+            className="p-2 rounded-lg border border-slate-700 bg-slate-800/50 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 hover:border-slate-600 transition-all duration-200"
+            aria-label={t('share.bookmark')}
+            title={t('share.bookmark')}
+          >
+            <Bookmark size={16} />
+          </button>
+          <button
+            onClick={handleShare}
+            className="p-2 rounded-lg border border-slate-700 bg-slate-800/50 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 hover:border-slate-600 transition-all duration-200"
+            aria-label={t('share.share')}
+            title={t('share.share')}
+          >
+            <Share2 size={16} />
+          </button>
         </div>
 
         {/* 推荐按钮 */}
