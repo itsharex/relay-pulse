@@ -25,6 +25,44 @@ function LanguageLayout({ lang }: LanguageLayoutProps) {
 }
 
 /**
+ * 路由级加载占位符
+ * 使用与主题一致的深色背景和三点跳动动画，避免视觉跳跃
+ */
+function RouterFallback() {
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#020617',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
+      }}
+    >
+      {[0, 0.15, 0.3].map((delay, i) => (
+        <div
+          key={i}
+          style={{
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
+            animation: `bounce 0.6s ease-in-out ${delay}s infinite alternate`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes bounce {
+          from { transform: translateY(0); opacity: 0.4; }
+          to { transform: translateY(-12px); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/**
  * 应用路由配置
  *
  * 路由规则：
@@ -46,7 +84,7 @@ function LanguageLayout({ lang }: LanguageLayoutProps) {
  */
 export default function AppRouter() {
   return (
-    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>加载中...</div>}>
+    <Suspense fallback={<RouterFallback />}>
       <Routes>
         {/* 中文默认路径（无前缀） */}
         <Route element={<LanguageLayout />}>

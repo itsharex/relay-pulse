@@ -27,8 +27,36 @@
       }
     </script>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin: 0; background-color: #020617;">
+    <div id="root">
+      <!-- 初始加载状态：在 React 挂载前显示，避免白屏闪烁 -->
+      <div id="initial-loader" style="
+        min-height: 100vh;
+        background-color: #020617;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      ">
+        <!-- 三点跳动动画 -->
+        <div class="dot" style="animation-delay: 0s;"></div>
+        <div class="dot" style="animation-delay: 0.15s;"></div>
+        <div class="dot" style="animation-delay: 0.3s;"></div>
+        <style>
+          .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            animation: bounce 0.6s ease-in-out infinite alternate;
+          }
+          @keyframes bounce {
+            from { transform: translateY(0); opacity: 0.4; }
+            to { transform: translateY(-12px); opacity: 1; }
+          }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
