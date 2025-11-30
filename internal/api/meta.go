@@ -1,0 +1,333 @@
+package api
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"monitor/internal/config"
+)
+
+// Language 语言配置
+type Language struct {
+	Code        string // 完整语言码（zh-CN, en-US 等）
+	PathPrefix  string // URL 路径前缀（'', en, ru, ja）
+	HreflangTag string // hreflang 标签（zh-Hans, en, ru, ja）
+}
+
+// 支持的语言列表（与前端 i18n/index.ts 保持一致）
+var supportedLanguages = []Language{
+	{Code: "zh-CN", PathPrefix: "", HreflangTag: "zh-Hans"},
+	{Code: "en-US", PathPrefix: "en", HreflangTag: "en"},
+	{Code: "ru-RU", PathPrefix: "ru", HreflangTag: "ru"},
+	{Code: "ja-JP", PathPrefix: "ja", HreflangTag: "ja"},
+}
+
+// 路径前缀到语言码的映射（与前端 PATH_LANGUAGE_MAP 对应）
+var pathToLangCode = map[string]string{
+	"":   "zh-CN",
+	"en": "en-US",
+	"ru": "ru-RU",
+	"ja": "ja-JP",
+}
+
+// MetaData 页面 Meta 数据
+type MetaData struct {
+	Title       string
+	Description string
+	Language    Language
+	ProviderName string // 服务商名称（仅服务商页面）
+	IsProviderPage bool // 是否为服务商页面
+}
+
+// PageMeta 生成的完整 meta 标签
+type PageMeta struct {
+	BasicMeta   string // title + description
+	Canonical   string // canonical 标签
+	Hreflang    string // hreflang 标签组
+	OpenGraph   string // Open Graph 标签组
+	TwitterCard string // Twitter Card 标签组
+	JSONLD      string // JSON-LD 结构化数据
+}
+
+// parseRequestPath 解析请求路径，提取语言和 provider slug
+func parseRequestPath(path string) (langCode string, providerSlug string, isProviderPage bool) {
+	// 默认中文
+	langCode = "zh-CN"
+
+	// 移除前后斜杠
+	path = strings.Trim(path, "/")
+
+	if path == "" {
+		return // 中文首页
+	}
+
+	parts := strings.Split(path, "/")
+
+	// 检查第一部分是否为语言前缀
+	if lang, exists := pathToLangCode[parts[0]]; exists {
+		langCode = lang
+		parts = parts[1:] // 移除语言前缀
+	}
+
+	// 检查是否为服务商页面 /p/:slug
+	if len(parts) >= 2 && parts[0] == "p" {
+		isProviderPage = true
+		providerSlug = parts[1]
+	}
+
+	return
+}
+
+// getLanguageByCode 根据语言码获取 Language 对象
+func getLanguageByCode(code string) Language {
+	for _, lang := range supportedLanguages {
+		if lang.Code == code {
+			return lang
+		}
+	}
+	return supportedLanguages[0] // 默认中文
+}
+
+// getMetaContent 根据语言和页面类型获取 meta 内容
+func getMetaContent(langCode string, providerName string, isProviderPage bool) MetaData {
+	lang := getLanguageByCode(langCode)
+
+	var title, description string
+
+	if isProviderPage {
+		// 服务商页面
+		switch langCode {
+		case "zh-CN":
+			title = fmt.Sprintf("%s 服务可用性监控 - RelayPulse", providerName)
+			description = fmt.Sprintf("实时监控 %s 的 API 可用性、延迟和服务质量，查看历史稳定性数据和赞助链路状态。", providerName)
+		case "en-US":
+			title = fmt.Sprintf("%s Service Availability Monitoring - RelayPulse", providerName)
+			description = fmt.Sprintf("Monitor %s API availability, latency, and service quality in real time. View historical stability data and sponsored route status.", providerName)
+		case "ru-RU":
+			title = fmt.Sprintf("Мониторинг доступности сервиса %s - RelayPulse", providerName)
+			description = fmt.Sprintf("Мониторинг доступности API %s, задержки и качества обслуживания в реальном времени.", providerName)
+		case "ja-JP":
+			title = fmt.Sprintf("%s サービス可用性監視 - RelayPulse", providerName)
+			description = fmt.Sprintf("%s の API 可用性、レイテンシ、サービス品質をリアルタイムで監視します。", providerName)
+		}
+	} else {
+		// 首页
+		switch langCode {
+		case "zh-CN":
+			title = "RelayPulse - LLM 中转服务可用性监控"
+			description = "RelayPulse - 实时监控全球 LLM 中转服务的可用性、延迟与赞助链路，帮助开发者快速评估服务商质量，发现最稳定的 API 提供商。支持 Claude、GPT 等主流模型的连通性检测。"
+		case "en-US":
+			title = "RelayPulse - Availability monitoring for LLM relay services"
+			description = "RelayPulse - Monitor availability, latency, and sponsored routes of LLM relay services worldwide in real time, helping developers quickly evaluate provider quality and discover the most stable API providers. Supports connectivity checks for mainstream models such as Claude and GPT."
+		case "ru-RU":
+			title = "RelayPulse - Мониторинг доступности сервисов ретрансляции LLM"
+			description = "RelayPulse - Мониторинг доступности, задержки и спонсорских маршрутов сервисов ретрансляции LLM по всему миру в реальном времени, помогая разработчикам быстро оценивать качество провайдеров."
+		case "ja-JP":
+			title = "RelayPulse - LLM リレーサービスの可用性監視"
+			description = "RelayPulse - 世界中の LLM リレーサービスの可用性、レイテンシ、スポンサールートをリアルタイムで監視し、開発者が迅速にプロバイダーの品質を評価できるようにします。"
+		}
+	}
+
+	return MetaData{
+		Title:       title,
+		Description: description,
+		Language:    lang,
+		ProviderName: providerName,
+		IsProviderPage: isProviderPage,
+	}
+}
+
+// generatePageMeta 生成完整的 meta 标签
+func generatePageMeta(meta MetaData, baseURL string, currentPath string) PageMeta {
+	// 1. 基础 meta
+	basicMeta := fmt.Sprintf(`    <title>%s</title>
+    <meta name="description" content="%s">`,
+		meta.Title,
+		meta.Description)
+
+	// 2. Canonical URL
+	canonicalURL := baseURL + currentPath
+	canonical := fmt.Sprintf(`    <link rel="canonical" href="%s">`, canonicalURL)
+
+	// 3. Hreflang 标签
+	var hreflangBuilder strings.Builder
+	for _, lang := range supportedLanguages {
+		var href string
+		if meta.IsProviderPage {
+			if lang.PathPrefix == "" {
+				href = fmt.Sprintf("%s/p/%s", baseURL, meta.ProviderName)
+			} else {
+				href = fmt.Sprintf("%s/%s/p/%s", baseURL, lang.PathPrefix, meta.ProviderName)
+			}
+		} else {
+			if lang.PathPrefix == "" {
+				href = fmt.Sprintf("%s/", baseURL)
+			} else {
+				href = fmt.Sprintf("%s/%s/", baseURL, lang.PathPrefix)
+			}
+		}
+		hreflangBuilder.WriteString(fmt.Sprintf(`    <link rel="alternate" hreflang="%s" href="%s">`+"\n", lang.HreflangTag, href))
+	}
+
+	// x-default 指向中文版本
+	if meta.IsProviderPage {
+		hreflangBuilder.WriteString(fmt.Sprintf(`    <link rel="alternate" hreflang="x-default" href="%s/p/%s">`, baseURL, meta.ProviderName))
+	} else {
+		hreflangBuilder.WriteString(fmt.Sprintf(`    <link rel="alternate" hreflang="x-default" href="%s/">`, baseURL))
+	}
+
+	// 4. Open Graph
+	ogType := "website"
+	ogImage := baseURL + "/og-image.png" // 可以后续添加实际图片
+	openGraph := fmt.Sprintf(`    <meta property="og:type" content="%s">
+    <meta property="og:title" content="%s">
+    <meta property="og:description" content="%s">
+    <meta property="og:url" content="%s">
+    <meta property="og:image" content="%s">
+    <meta property="og:locale" content="%s">`,
+		ogType,
+		meta.Title,
+		meta.Description,
+		canonicalURL,
+		ogImage,
+		strings.Replace(meta.Language.Code, "-", "_", 1)) // zh-CN → zh_CN
+
+	// 5. Twitter Card
+	twitterCard := fmt.Sprintf(`    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="%s">
+    <meta name="twitter:description" content="%s">
+    <meta name="twitter:image" content="%s">`,
+		meta.Title,
+		meta.Description,
+		ogImage)
+
+	// 6. JSON-LD 结构化数据
+	var jsonLD string
+	if meta.IsProviderPage {
+		// 服务商页面：Service 类型
+		jsonLDData := map[string]interface{}{
+			"@context": "https://schema.org",
+			"@type":    "Service",
+			"name":     fmt.Sprintf("%s API 监控", meta.ProviderName),
+			"provider": map[string]interface{}{
+				"@type": "Organization",
+				"name":  meta.ProviderName,
+			},
+			"areaServed": "全球",
+		}
+		jsonLDBytes, _ := json.MarshalIndent(jsonLDData, "    ", "  ")
+		jsonLD = fmt.Sprintf(`    <script type="application/ld+json">
+    %s
+    </script>`, string(jsonLDBytes))
+	} else {
+		// 首页：WebSite 类型
+		jsonLDData := map[string]interface{}{
+			"@context":   "https://schema.org",
+			"@type":      "WebSite",
+			"name":       "RelayPulse",
+			"url":        baseURL,
+			"description": meta.Description,
+			"inLanguage": []string{"zh-CN", "en-US", "ru-RU", "ja-JP"},
+		}
+		jsonLDBytes, _ := json.MarshalIndent(jsonLDData, "    ", "  ")
+		jsonLD = fmt.Sprintf(`    <script type="application/ld+json">
+    %s
+    </script>`, string(jsonLDBytes))
+	}
+
+	return PageMeta{
+		BasicMeta:   basicMeta,
+		Canonical:   canonical,
+		Hreflang:    hreflangBuilder.String(),
+		OpenGraph:   openGraph,
+		TwitterCard: twitterCard,
+		JSONLD:      jsonLD,
+	}
+}
+
+// injectMetaTags 在 index.html 中注入 meta 标签
+func injectMetaTags(indexHTML string, path string, cfg *config.AppConfig) string {
+	const baseURL = "https://relaypulse.top"
+
+	// 解析路径
+	langCode, providerSlug, isProviderPage := parseRequestPath(path)
+
+	// 如果是服务商页面，需要从配置中获取真实的 provider 名称
+	providerName := providerSlug
+	if isProviderPage && cfg != nil {
+		for _, monitor := range cfg.Monitors {
+			slug := monitor.ProviderSlug
+			if slug == "" {
+				slug = strings.ToLower(strings.TrimSpace(monitor.Provider))
+			}
+			if slug == providerSlug {
+				providerName = monitor.Provider
+				break
+			}
+		}
+	}
+
+	// 获取 meta 内容
+	metaData := getMetaContent(langCode, providerName, isProviderPage)
+
+	// 生成完整 meta 标签
+	pageMeta := generatePageMeta(metaData, baseURL, path)
+
+	// 替换原有的 title 和 description
+	html := indexHTML
+
+	// 替换 <title>...</title>
+	html = replaceBetween(html, "<title>", "</title>", metaData.Title)
+
+	// 替换 <meta name="description" ...>
+	html = replaceMetaDescription(html, metaData.Description)
+
+	// 在 </head> 前插入其他 meta 标签
+	additionalMeta := fmt.Sprintf("\n%s\n%s\n%s\n%s\n%s\n",
+		pageMeta.Canonical,
+		pageMeta.Hreflang,
+		pageMeta.OpenGraph,
+		pageMeta.TwitterCard,
+		pageMeta.JSONLD)
+
+	html = strings.Replace(html, "</head>", additionalMeta+"  </head>", 1)
+
+	return html
+}
+
+// replaceBetween 替换两个标记之间的内容
+func replaceBetween(s, start, end, newContent string) string {
+	startIdx := strings.Index(s, start)
+	if startIdx == -1 {
+		return s
+	}
+	startIdx += len(start)
+
+	endIdx := strings.Index(s[startIdx:], end)
+	if endIdx == -1 {
+		return s
+	}
+	endIdx += startIdx
+
+	return s[:startIdx] + newContent + s[endIdx:]
+}
+
+// replaceMetaDescription 替换 meta description 标签
+func replaceMetaDescription(html, newDescription string) string {
+	// 匹配 <meta name="description" content="...">
+	start := `<meta name="description" content="`
+	startIdx := strings.Index(html, start)
+	if startIdx == -1 {
+		return html
+	}
+	startIdx += len(start)
+
+	endIdx := strings.Index(html[startIdx:], `"`)
+	if endIdx == -1 {
+		return html
+	}
+	endIdx += startIdx
+
+	return html[:startIdx] + newDescription + html[endIdx:]
+}

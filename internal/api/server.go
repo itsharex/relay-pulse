@@ -110,8 +110,8 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 	router.GET("/health", healthHandler)
 	router.HEAD("/health", healthHandler)
 
-	// 静态文件服务（前端）
-	setupStaticFiles(router)
+	// 静态文件服务（前端）- 传递 handler 以支持动态 Meta 注入
+	setupStaticFiles(router, handler)
 
 	return &Server{
 		handler: handler,
@@ -159,7 +159,7 @@ func (s *Server) UpdateConfig(cfg *config.AppConfig) {
 }
 
 // setupStaticFiles 设置静态文件服务（前端）
-func setupStaticFiles(router *gin.Engine) {
+func setupStaticFiles(router *gin.Engine, handler *Handler) {
 	// 获取嵌入的前端文件系统
 	distFS, err := fs.Sub(frontendFS, "frontend/dist")
 	if err != nil {
@@ -247,9 +247,15 @@ func setupStaticFiles(router *gin.Engine) {
 				mimeType = "application/octet-stream"
 			}
 
-			log.Printf("[API] ✅ 静态文件命中: %s (MIME: %s)", filePath, mimeType)
-			c.DataFromReader(http.StatusOK, info.Size(), mimeType, file, nil)
-			return
+			// 特殊处理: index.html 需要走 Meta 注入逻辑，不直接返回
+			if filePath == "index.html" {
+				log.Printf("[API] 🔍 检测到 index.html，将进行 Meta 注入")
+				// 不直接返回，让它进入后面的 Meta 注入逻辑
+			} else {
+				log.Printf("[API] ✅ 静态文件命中: %s (MIME: %s)", filePath, mimeType)
+				c.DataFromReader(http.StatusOK, info.Size(), mimeType, file, nil)
+				return
+			}
 		} else {
 			log.Printf("[API] ⚠️  embed FS miss: %s (error: %v)", filePath, err)
 		}
@@ -260,6 +266,14 @@ func setupStaticFiles(router *gin.Engine) {
 			c.String(http.StatusInternalServerError, "Failed to load frontend")
 			return
 		}
-		c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+
+		// 动态注入 Meta 标签（SEO 优化）
+		handler.cfgMu.RLock()
+		cfg := handler.config
+		handler.cfgMu.RUnlock()
+
+		html := injectMetaTags(string(data), path, cfg)
+
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 	})
 }
