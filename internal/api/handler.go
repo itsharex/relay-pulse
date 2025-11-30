@@ -114,6 +114,9 @@ func (h *Handler) GetStatus(c *gin.Context) {
 
 	log.Printf("[API] GetStatus 成功 mode=%s monitors=%d period=%s count=%d", mode, len(filtered), period, len(response))
 
+	// CDN 缓存头：Cloudflare 遵守 s-maxage，浏览器遵守 max-age
+	c.Header("Cache-Control", "public, max-age=60, s-maxage=60")
+
 	c.JSON(http.StatusOK, gin.H{
 		"meta": gin.H{
 			"period": period,

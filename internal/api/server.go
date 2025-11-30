@@ -58,6 +58,24 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 	}
 	router.Use(cors.New(corsConfig))
 
+	// 强制 gzip 中间件（仅针对大响应 API，保护 4Mb 带宽）
+	// /api/status 响应约 300KB，未压缩会瞬间打满带宽
+	router.Use(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		// 仅对 /api/status 强制要求 gzip
+		if strings.HasPrefix(path, "/api/status") {
+			acceptEncoding := c.GetHeader("Accept-Encoding")
+			if !strings.Contains(acceptEncoding, "gzip") {
+				c.AbortWithStatusJSON(http.StatusNotAcceptable, gin.H{
+					"error": "This endpoint requires gzip support. Add header: Accept-Encoding: gzip",
+				})
+				return
+			}
+		}
+		c.Next()
+	})
+
 	// Gzip 压缩中间件
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 
