@@ -28,12 +28,9 @@ export function addMediaQueryListener(
     return () => mediaQuery.removeEventListener('change', handler);
   }
 
-  // Safari ≤13 回退到 addListener
-  // @ts-ignore - addListener 在旧版 Safari 中存在
+  // Safari ≤13 回退到 addListener（现代 TypeScript 已支持）
   if (mediaQuery.addListener) {
-    // @ts-ignore
     mediaQuery.addListener(handler);
-    // @ts-ignore
     return () => mediaQuery.removeListener(handler);
   }
 

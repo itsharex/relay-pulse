@@ -3,6 +3,14 @@ import { BREAKPOINTS, addMediaQueryListener } from './mediaQuery';
 
 type HistoryPoint = ProcessedMonitorData['history'][number];
 
+// 聚合数据点的扩展字段类型
+interface AggregatedExtension {
+  _aggregated?: boolean;
+  _originalPoints?: HistoryPoint[];
+  _minAvailability?: number;
+  _maxAvailability?: number;
+}
+
 // 使用 matchMedia 缓存平板/移动端状态，避免在每次渲染时重复计算
 let cachedIsTablet: boolean | null = null;
 let mediaQueryList: MediaQueryList | null = null;
@@ -141,7 +149,7 @@ function aggregateGroup(group: HistoryPoint[]): HistoryPoint {
     : 0;
 
   // 返回聚合后的数据点（扩展字段通过类型断言添加）
-  const result: HistoryPoint & Record<string, any> = {
+  const result: HistoryPoint & AggregatedExtension = {
     index: firstPoint.index,
     status: mostSevereStatus,
     timestamp: firstPoint.timestamp,

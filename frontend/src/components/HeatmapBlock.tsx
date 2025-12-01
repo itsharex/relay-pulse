@@ -54,7 +54,7 @@ export function HeatmapBlock({
       onTouchStart={handleTouch}
       onClick={handleTouch}
       // 键盘可访问性（仅桌面端）
-      onFocus={isMobile ? undefined : (e) => onHover(e as any, point)}
+      onFocus={isMobile ? undefined : (e) => onHover(e as unknown as React.MouseEvent<HTMLDivElement>, point)}
       onBlur={isMobile ? undefined : onLeave}
       // 无障碍标签
       aria-label={
