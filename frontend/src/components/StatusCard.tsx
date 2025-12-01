@@ -7,6 +7,7 @@ import { ExternalLink } from './ExternalLink';
 import { getStatusConfig, getTimeRanges } from '../constants';
 import { availabilityToColor, latencyToColor } from '../utils/color';
 import { aggregateHeatmap } from '../utils/heatmapAggregator';
+import { getServiceIconComponent } from './ServiceIcon';
 import type { ProcessedMonitorData } from '../types';
 
 type HistoryPoint = ProcessedMonitorData['history'][number];
@@ -42,6 +43,7 @@ export function StatusCard({
 
   const STATUS = getStatusConfig(t);
   const currentTimeRange = getTimeRanges(t).find((r) => r.id === timeRange);
+  const ServiceIcon = getServiceIconComponent(item.serviceType);
 
   return (
     <div className="group relative bg-slate-900/60 border border-slate-800 hover:border-cyan-500/30 rounded-2xl p-4 sm:p-6 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.1)] backdrop-blur-sm overflow-hidden">
@@ -52,8 +54,10 @@ export function StatusCard({
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 mb-6">
         {/* 左侧：图标 + 服务信息 */}
         <div className="flex gap-3 sm:gap-4 items-start sm:items-center">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:border-slate-600 transition-colors">
-            {item.serviceType === 'cc' ? (
+          <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:border-slate-600 transition-colors text-slate-200">
+            {ServiceIcon ? (
+              <ServiceIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            ) : item.serviceType === 'cc' ? (
               <Zap className="text-purple-400" size={20} />
             ) : (
               <Shield className="text-blue-400" size={20} />

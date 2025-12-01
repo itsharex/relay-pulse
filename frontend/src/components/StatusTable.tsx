@@ -8,6 +8,7 @@ import { getStatusConfig, getTimeRanges } from '../constants';
 import { availabilityToColor, latencyToColor } from '../utils/color';
 import { aggregateHeatmap } from '../utils/heatmapAggregator';
 import { createMediaQueryEffect } from '../utils/mediaQuery';
+import { getServiceIconComponent } from './ServiceIcon';
 import type { ProcessedMonitorData, SortConfig } from '../types';
 
 type HistoryPoint = ProcessedMonitorData['history'][number];
@@ -46,6 +47,7 @@ function MobileListItem({
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const STATUS = getStatusConfig(t);
+  const ServiceIcon = getServiceIconComponent(item.serviceType);
 
   // 聚合热力图数据
   const aggregatedHistory = useMemo(
@@ -59,8 +61,10 @@ function MobileListItem({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* 服务图标 */}
-          <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700">
-            {item.serviceType === 'cc' ? (
+          <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700 text-slate-200">
+            {ServiceIcon ? (
+              <ServiceIcon className="w-5 h-5" />
+            ) : item.serviceType === 'cc' ? (
               <Zap className="text-purple-400" size={18} />
             ) : (
               <Shield className="text-blue-400" size={18} />
@@ -370,7 +374,9 @@ export function StatusTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/50 text-sm">
-          {data.map((item) => (
+          {data.map((item) => {
+            const ServiceIcon = getServiceIconComponent(item.serviceType);
+            return (
             <tr
               key={item.id}
               className="group hover:bg-slate-800/40 transition-[background-color,color]"
@@ -408,8 +414,14 @@ export function StatusTable({
                       : 'border-blue-500/30 text-blue-300 bg-blue-500/10'
                   }`}
                 >
-                  {item.serviceType === 'cc' && <Zap size={10} className="mr-1" />}
-                  {item.serviceType === 'cx' && <Shield size={10} className="mr-1" />}
+                  {ServiceIcon ? (
+                    <ServiceIcon className="w-3.5 h-3.5 mr-1" />
+                  ) : (
+                    <>
+                      {item.serviceType === 'cc' && <Zap size={10} className="mr-1" />}
+                      {item.serviceType === 'cx' && <Shield size={10} className="mr-1" />}
+                    </>
+                  )}
                   {item.serviceType.toUpperCase()}
                 </span>
               </td>
@@ -461,7 +473,8 @@ export function StatusTable({
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
