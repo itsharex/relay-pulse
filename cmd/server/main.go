@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +10,7 @@ import (
 	"monitor/internal/api"
 	"monitor/internal/buildinfo"
 	"monitor/internal/config"
+	"monitor/internal/logger"
 	"monitor/internal/scheduler"
 	"monitor/internal/storage"
 )
@@ -44,11 +44,11 @@ func buildChannelMigrationMappings(monitors []config.ServiceConfig) []storage.Ch
 
 func main() {
 	// 打印版本信息
-	log.Printf("🚀 Relay Pulse Monitor")
-	log.Printf("📦 Version: %s", buildinfo.GetVersion())
-	log.Printf("🔖 Git Commit: %s", buildinfo.GetGitCommit())
-	log.Printf("🕐 Build Time: %s", buildinfo.GetBuildTime())
-	log.Println()
+	logger.Info("main", "Relay Pulse Monitor 启动",
+		"version", buildinfo.GetVersion(),
+		"git_commit", buildinfo.GetGitCommit(),
+		"build_time", buildinfo.GetBuildTime())
+
 	// 配置文件路径
 	configFile := "config.yaml"
 	if len(os.Args) > 1 {
@@ -61,32 +61,35 @@ func main() {
 	// 初始加载配置
 	cfg, err := loader.Load(configFile)
 	if err != nil {
-		log.Fatalf("❌ 无法加载配置文件: %v", err)
+		logger.Error("main", "无法加载配置文件", "error", err)
+		os.Exit(1)
 	}
 
-	log.Printf("✅ 已加载 %d 个监控任务", len(cfg.Monitors))
+	logger.Info("main", "配置加载完成", "monitors", len(cfg.Monitors))
 
 	// 初始化存储（支持 SQLite 和 PostgreSQL）
 	store, err := storage.New(&cfg.Storage)
 	if err != nil {
-		log.Fatalf("❌ 初始化存储失败: %v", err)
+		logger.Error("main", "初始化存储失败", "error", err)
+		os.Exit(1)
 	}
 	defer store.Close()
 
 	if err := store.Init(); err != nil {
-		log.Fatalf("❌ 初始化数据库失败: %v", err)
+		logger.Error("main", "初始化数据库失败", "error", err)
+		os.Exit(1)
 	}
 
 	// 自动迁移旧数据的 channel
 	if err := store.MigrateChannelData(buildChannelMigrationMappings(cfg.Monitors)); err != nil {
-		log.Printf("⚠️ channel 数据迁移失败: %v", err)
+		logger.Warn("main", "channel 数据迁移失败", "error", err)
 	}
 
 	storageType := cfg.Storage.Type
 	if storageType == "" {
 		storageType = "sqlite"
 	}
-	log.Printf("✅ %s 存储已就绪", storageType)
+	logger.Info("main", "存储已就绪", "type", storageType)
 
 	// 创建上下文（用于优雅关闭）
 	ctx, cancel := context.WithCancel(context.Background())
@@ -110,19 +113,19 @@ func main() {
 		server.UpdateConfig(newCfg)
 		// 重新运行 channel 迁移（支持运行时添加 channel）
 		if err := store.MigrateChannelData(buildChannelMigrationMappings(newCfg.Monitors)); err != nil {
-			log.Printf("⚠️ 热更新时 channel 迁移失败: %v", err)
+			logger.Warn("main", "热更新时 channel 迁移失败", "error", err)
 		}
 		// 立即触发一次巡检，确保新配置立即生效
 		sched.TriggerNow()
 	})
 
 	if err != nil {
-		log.Printf("⚠️  配置监听器创建失败: %v (热更新功能不可用)", err)
+		logger.Warn("main", "配置监听器创建失败，热更新功能不可用", "error", err)
 	} else {
 		if err := watcher.Start(ctx); err != nil {
-			log.Printf("⚠️  配置监听器启动失败: %v (热更新功能不可用)", err)
+			logger.Warn("main", "配置监听器启动失败，热更新功能不可用", "error", err)
 		} else {
-			log.Printf("✅ 配置热更新已启用")
+			logger.Info("main", "配置热更新已启用")
 		}
 	}
 
@@ -137,7 +140,7 @@ func main() {
 				return
 			case <-ticker.C:
 				if err := store.CleanOldRecords(30); err != nil {
-					log.Printf("⚠️  清理旧记录失败: %v", err)
+					logger.Warn("main", "清理旧记录失败", "error", err)
 				}
 			}
 		}
@@ -150,7 +153,7 @@ func main() {
 	// 启动HTTP服务器（阻塞）
 	go func() {
 		if err := server.Start(); err != nil {
-			log.Printf("❌ HTTP服务器错误: %v", err)
+			logger.Error("main", "HTTP服务器错误", "error", err)
 			cancel()
 			// 向信号通道发送信号，确保进程退出
 			sigChan <- syscall.SIGTERM
@@ -159,7 +162,7 @@ func main() {
 
 	// 等待中断信号
 	<-sigChan
-	log.Println("\n⚠️  收到关闭信号，正在优雅退出...")
+	logger.Info("main", "收到关闭信号，正在优雅退出")
 
 	// 取消上下文
 	cancel()
@@ -172,8 +175,8 @@ func main() {
 	defer shutdownCancel()
 
 	if err := server.Stop(shutdownCtx); err != nil {
-		log.Printf("⚠️  HTTP服务器关闭错误: %v", err)
+		logger.Warn("main", "HTTP服务器关闭错误", "error", err)
 	}
 
-	log.Println("👋 服务已安全退出")
+	logger.Info("main", "服务已安全退出")
 }

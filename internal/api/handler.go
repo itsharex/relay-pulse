@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -15,16 +14,17 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"monitor/internal/config"
+	"monitor/internal/logger"
 	"monitor/internal/storage"
 )
 
 // statusCache API 响应缓存，防止高频查询打爆数据库
 type statusCache struct {
-	mu       sync.RWMutex
-	entries  map[string]*cacheEntry
-	ttl      time.Duration
-	maxSize  int                // 最大缓存条目数，防止内存泄漏
-	sf       singleflight.Group // 防止缓存击穿
+	mu      sync.RWMutex
+	entries map[string]*cacheEntry
+	ttl     time.Duration
+	maxSize int                // 最大缓存条目数，防止内存泄漏
+	sf      singleflight.Group // 防止缓存击穿
 }
 
 type cacheEntry struct {
@@ -126,8 +126,8 @@ func (c *statusCache) load(key string, loader func() ([]byte, error)) ([]byte, e
 type Handler struct {
 	storage storage.Storage
 	config  *config.AppConfig
-	cfgMu   sync.RWMutex   // 保护config的并发访问
-	cache   *statusCache   // API 响应缓存
+	cfgMu   sync.RWMutex // 保护config的并发访问
+	cache   *statusCache // API 响应缓存
 }
 
 // NewHandler 创建处理器
@@ -152,12 +152,12 @@ type MonitorResult struct {
 	ProviderSlug string              `json:"provider_slug"` // URL slug（用于生成专属页面链接）
 	ProviderURL  string              `json:"provider_url"`  // 服务商官网链接
 	Service      string              `json:"service"`
-	Category    string              `json:"category"` // 分类：commercial（推广站）或 public（公益站）
-	Sponsor     string              `json:"sponsor"`  // 赞助者
-	SponsorURL  string              `json:"sponsor_url"` // 赞助者链接
-	Channel     string              `json:"channel"`  // 业务通道标识
-	Current     *CurrentStatus      `json:"current_status"`
-	Timeline    []storage.TimePoint `json:"timeline"`
+	Category     string              `json:"category"`    // 分类：commercial（推广站）或 public（公益站）
+	Sponsor      string              `json:"sponsor"`     // 赞助者
+	SponsorURL   string              `json:"sponsor_url"` // 赞助者链接
+	Channel      string              `json:"channel"`     // 业务通道标识
+	Current      *CurrentStatus      `json:"current_status"`
+	Timeline     []storage.TimePoint `json:"timeline"`
 }
 
 // GetStatus 获取监控状态
@@ -187,7 +187,7 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Printf("[API] GetStatus 失败 key=%s error=%v", cacheKey, err)
+		logger.FromContext(c.Request.Context(), "api").Error("GetStatus 失败", "cache_key", cacheKey, "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("查询失败: %v", err),
 		})
@@ -246,7 +246,7 @@ func (h *Handler) queryAndSerialize(ctx context.Context, period, qProvider, qSer
 		return nil, err
 	}
 
-	log.Printf("[API] GetStatus 查询 mode=%s monitors=%d period=%s count=%d", mode, len(filtered), period, len(response))
+	logger.Info("api", "GetStatus 查询完成", "mode", mode, "monitors", len(filtered), "period", period, "count", len(response))
 
 	// 序列化为 JSON
 	result := gin.H{
@@ -432,9 +432,9 @@ func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string, d
 		buckets[i] = storage.TimePoint{
 			Time:         bucketTime.Format(format),
 			Timestamp:    bucketTime.Unix(),
-			Status:       -1,  // 缺失标记
+			Status:       -1, // 缺失标记
 			Latency:      0,
-			Availability: -1,  // 缺失标记
+			Availability: -1, // 缺失标记
 		}
 	}
 
@@ -622,10 +622,10 @@ func (h *Handler) buildSitemapXML(providerSlugs []string) string {
 		code string // hreflang 语言码
 		path string // URL 路径前缀
 	}{
-		{"zh-Hans", ""},   // 中文默认无前缀
-		{"en", "en"},      // 英文
-		{"ru", "ru"},      // 俄文
-		{"ja", "ja"},      // 日文
+		{"zh-Hans", ""}, // 中文默认无前缀
+		{"en", "en"},    // 英文
+		{"ru", "ru"},    // 俄文
+		{"ja", "ja"},    // 日文
 	}
 
 	var sb strings.Builder

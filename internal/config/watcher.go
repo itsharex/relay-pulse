@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +9,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
+	"monitor/internal/logger"
 )
 
 // Watcher 配置文件监听器
@@ -57,14 +58,14 @@ func (w *Watcher) Start(ctx context.Context) error {
 		}
 	}
 
-	log.Printf("[Config] 开始监听配置文件: %s (监听目录: %s)", w.filename, dir)
+	logger.Info("config", "开始监听配置文件", "file", w.filename, "dir", dir)
 
 	go func() {
 		var debounceTimer *time.Timer
 		for {
 			select {
 			case <-ctx.Done():
-				log.Println("[Config] 配置监听器已停止")
+				logger.Info("config", "配置监听器已停止")
 				w.watcher.Close()
 				return
 
@@ -89,7 +90,7 @@ func (w *Watcher) Start(ctx context.Context) error {
 					}
 
 					debounceTimer = time.AfterFunc(w.debounceTime, func() {
-						log.Println("[Config] 检测到配置文件变更，正在重载...")
+						logger.Info("config", "检测到配置文件变更，正在重载")
 						w.reload()
 					})
 				}
@@ -97,7 +98,7 @@ func (w *Watcher) Start(ctx context.Context) error {
 				// 处理 Remove/Rename：重新监听，避免 inode 变化后事件丢失
 				if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 && (isConfigFile || isDataFile) {
 					if err := w.rewatchPath(eventPath); err != nil {
-						log.Printf("[Config] 重新监听目录失败: %v", err)
+						logger.Error("config", "重新监听目录失败", "error", err)
 					}
 				}
 
@@ -106,7 +107,7 @@ func (w *Watcher) Start(ctx context.Context) error {
 					return
 				}
 				// 不使用 log.Fatal，只记录错误
-				log.Printf("[Config] 监听错误: %v", err)
+				logger.Error("config", "监听错误", "error", err)
 			}
 		}
 	}()
@@ -118,11 +119,11 @@ func (w *Watcher) Start(ctx context.Context) error {
 func (w *Watcher) reload() {
 	newConfig, err := w.loader.LoadOrRollback(w.filename)
 	if err != nil {
-		log.Printf("[Config] 重载失败: %v", err)
+		logger.Error("config", "重载失败", "error", err)
 		return
 	}
 
-	log.Printf("[Config] 热更新成功！已加载 %d 个监控任务", len(newConfig.Monitors))
+	logger.Info("config", "热更新成功", "monitors", len(newConfig.Monitors))
 
 	// 回调通知
 	if w.onReload != nil {

@@ -87,10 +87,10 @@ func TestConsecutiveHyphensSlug(t *testing.T) {
 // Test baseURL normalization
 func TestBaseURLNormalization(t *testing.T) {
 	tests := []struct {
-		name         string
-		inputURL     string
-		expectedURL  string
-		shouldErr    bool
+		name        string
+		inputURL    string
+		expectedURL string
+		shouldErr   bool
 	}{
 		{"正常 HTTPS URL", "https://relaypulse.top", "https://relaypulse.top", false},
 		{"带尾随斜杠", "https://relaypulse.top/", "https://relaypulse.top", false},
@@ -105,7 +105,7 @@ func TestBaseURLNormalization(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &AppConfig{PublicBaseURL: tt.inputURL}
 			err := cfg.Normalize()
-			
+
 			if tt.shouldErr {
 				if err == nil {
 					t.Errorf("Normalize() should return error for %q", tt.inputURL)
@@ -121,4 +121,3 @@ func TestBaseURLNormalization(t *testing.T) {
 		})
 	}
 }
-

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"log"
 	"regexp"
 	"strings"
 
 	"monitor/internal/config"
+	"monitor/internal/logger"
 )
 
 // Language 语言配置
@@ -262,7 +262,7 @@ func generatePageMeta(meta MetaData, baseURL string) PageMeta {
 		}
 		jsonLDBytes, err := json.MarshalIndent(jsonLDData, "    ", "  ")
 		if err != nil {
-			log.Printf("[SEO] JSON-LD marshal failed (provider=%s): %v", meta.Slug, err)
+			logger.Warn("seo", "JSON-LD 序列化失败", "provider", meta.Slug, "error", err)
 			jsonLD = ""
 		} else {
 			jsonLD = fmt.Sprintf(`    <script type="application/ld+json">
@@ -272,16 +272,16 @@ func generatePageMeta(meta MetaData, baseURL string) PageMeta {
 	} else {
 		// 首页：WebSite 类型
 		jsonLDData := map[string]interface{}{
-			"@context":   "https://schema.org",
-			"@type":      "WebSite",
-			"name":       "RelayPulse",
-			"url":        baseURL,
+			"@context":    "https://schema.org",
+			"@type":       "WebSite",
+			"name":        "RelayPulse",
+			"url":         baseURL,
 			"description": meta.Description,
-			"inLanguage": []string{"zh-CN", "en-US", "ru-RU", "ja-JP"},
+			"inLanguage":  []string{"zh-CN", "en-US", "ru-RU", "ja-JP"},
 		}
 		jsonLDBytes, err := json.MarshalIndent(jsonLDData, "    ", "  ")
 		if err != nil {
-			log.Printf("[SEO] JSON-LD marshal failed (lang=%s): %v", meta.Language.Code, err)
+			logger.Warn("seo", "JSON-LD 序列化失败", "lang", meta.Language.Code, "error", err)
 			jsonLD = ""
 		} else {
 			jsonLD = fmt.Sprintf(`    <script type="application/ld+json">

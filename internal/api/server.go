@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"log"
 	"mime"
 	"net/http"
 	"os"
@@ -16,9 +15,11 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"monitor/internal/buildinfo"
 	"monitor/internal/config"
+	"monitor/internal/logger"
 	"monitor/internal/storage"
 )
 
@@ -57,6 +58,21 @@ func NewServer(store storage.Storage, cfg *config.AppConfig, port string) *Serve
 		MaxAge:           12 * time.Hour,
 	}
 	router.Use(cors.New(corsConfig))
+
+	// Request ID 中间件 - 为每个请求生成唯一 ID，便于日志追踪
+	router.Use(func(c *gin.Context) {
+		requestID := c.GetHeader("X-Request-ID")
+		if requestID == "" {
+			requestID = uuid.New().String()[:8] // 使用短 UUID
+		}
+		c.Set("request_id", requestID)
+		c.Header("X-Request-ID", requestID)
+
+		// 将 request_id 注入到 context 供下游使用
+		ctx := logger.WithRequestID(c.Request.Context(), requestID)
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	})
 
 	// 强制 gzip 中间件（仅针对大响应 API，保护 4Mb 带宽）
 	// /api/status 响应约 300KB，未压缩会瞬间打满带宽
@@ -148,10 +164,10 @@ func (s *Server) Start() error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	log.Printf("\n🚀 监控服务已启动")
-	log.Printf("👉 Web 界面: http://localhost:%s", s.port)
-	log.Printf("👉 API 地址: http://localhost:%s/api/status", s.port)
-	log.Printf("👉 健康检查: http://localhost:%s/health\n", s.port)
+	logger.Info("api", "监控服务已启动",
+		"web_ui", fmt.Sprintf("http://localhost:%s", s.port),
+		"api", fmt.Sprintf("http://localhost:%s/api/status", s.port),
+		"health", fmt.Sprintf("http://localhost:%s/health", s.port))
 
 	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("启动HTTP服务失败: %w", err)
@@ -162,7 +178,7 @@ func (s *Server) Start() error {
 
 // Stop 停止服务器
 func (s *Server) Stop(ctx context.Context) error {
-	log.Println("[API] 正在关闭HTTP服务器...")
+	logger.Info("api", "正在关闭HTTP服务器")
 
 	if s.httpServer != nil {
 		return s.httpServer.Shutdown(ctx)
@@ -181,7 +197,7 @@ func setupStaticFiles(router *gin.Engine, handler *Handler) {
 	// 获取嵌入的前端文件系统
 	distFS, err := fs.Sub(frontendFS, "frontend/dist")
 	if err != nil {
-		log.Printf("[API] 警告: 无法加载前端文件系统: %v", err)
+		logger.Warn("api", "无法加载前端文件系统", "error", err)
 		return
 	}
 
@@ -190,7 +206,7 @@ func setupStaticFiles(router *gin.Engine, handler *Handler) {
 	// 所以需要创建一个子文件系统指向 assets 目录
 	assetsFS, err := fs.Sub(distFS, "assets")
 	if err != nil {
-		log.Printf("[API] 警告: 无法加载 assets 文件系统: %v", err)
+		logger.Warn("api", "无法加载 assets 文件系统", "error", err)
 		return
 	}
 
@@ -237,7 +253,7 @@ func setupStaticFiles(router *gin.Engine, handler *Handler) {
 
 		// 防止路径穿越攻击
 		if strings.Contains(filePath, "..") {
-			log.Printf("[API] ⚠️  路径穿越尝试: %s", path)
+			logger.Warn("api", "路径穿越尝试", "path", path)
 			c.Status(http.StatusBadRequest)
 			return
 		}

@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"monitor/internal/config"
+	"monitor/internal/logger"
 	"monitor/internal/storage"
 )
 
@@ -77,7 +77,8 @@ func (p *Prober) Probe(ctx context.Context, cfg *config.ServiceConfig) *ProbeRes
 	result.Latency = latency
 
 	if err != nil {
-		log.Printf("[Probe] ERROR %s-%s-%s: %v", cfg.Provider, cfg.Service, cfg.Channel, err)
+		logger.Error("probe", "请求失败",
+			"provider", cfg.Provider, "service", cfg.Service, "channel", cfg.Channel, "error", err)
 		result.Error = err
 		result.Status = 0
 		result.SubStatus = storage.SubStatusNetworkError
@@ -91,7 +92,8 @@ func (p *Prober) Probe(ctx context.Context, cfg *config.ServiceConfig) *ProbeRes
 		if data, readErr := io.ReadAll(resp.Body); readErr == nil {
 			bodyBytes = data
 		} else {
-			log.Printf("[Probe] 读取响应体失败 %s-%s-%s: %v", cfg.Provider, cfg.Service, cfg.Channel, readErr)
+			logger.Warn("probe", "读取响应体失败",
+				"provider", cfg.Provider, "service", cfg.Service, "channel", cfg.Channel, "error", readErr)
 		}
 	} else {
 		_, _ = io.Copy(io.Discard, resp.Body)
@@ -111,14 +113,15 @@ func (p *Prober) Probe(ctx context.Context, cfg *config.ServiceConfig) *ProbeRes
 			if len(snippet) > maxSnippetLen {
 				snippet = snippet[:maxSnippetLen] + "... (truncated)"
 			}
-			log.Printf("[Probe] RESPONSE_SNIPPET %s-%s-%s: %s",
-				cfg.Provider, cfg.Service, cfg.Channel, snippet)
+			logger.Warn("probe", "响应片段",
+				"provider", cfg.Provider, "service", cfg.Service, "channel", cfg.Channel, "snippet", snippet)
 		}
 	}
 
 	// 日志（不打印敏感信息）
-	log.Printf("[Probe] %s-%s-%s | Code: %d | Latency: %dms | Status: %d | SubStatus: %s",
-		cfg.Provider, cfg.Service, cfg.Channel, resp.StatusCode, latency, result.Status, result.SubStatus)
+	logger.Info("probe", "探测完成",
+		"provider", cfg.Provider, "service", cfg.Service, "channel", cfg.Channel,
+		"code", resp.StatusCode, "latency_ms", latency, "status", result.Status, "sub_status", result.SubStatus)
 
 	return result
 }

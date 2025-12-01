@@ -3,12 +3,12 @@ package storage
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"monitor/internal/config"
+	"monitor/internal/logger"
 )
 
 // PostgresStorage PostgreSQL 存储实现
@@ -44,7 +44,7 @@ func NewPostgresStorage(cfg *config.PostgresConfig) (*PostgresStorage, error) {
 	if cfg.ConnMaxLifetime != "" {
 		lifetime, err := time.ParseDuration(cfg.ConnMaxLifetime)
 		if err != nil {
-			log.Printf("[Storage] 警告: 解析 conn_max_lifetime 失败，使用默认值 1h: %v", err)
+			logger.Warn("storage", "解析 conn_max_lifetime 失败，使用默认值 1h", "error", err)
 			lifetime = time.Hour
 		}
 		poolConfig.MaxConnLifetime = lifetime
@@ -179,7 +179,7 @@ func (s *PostgresStorage) ensureSubStatusColumn() error {
 		return fmt.Errorf("添加 sub_status 列失败: %w", err)
 	}
 
-	log.Println("[Storage] 已为 probe_history 表添加 sub_status 列 (PostgreSQL)")
+	logger.Info("storage", "已为 probe_history 表添加 sub_status 列 (PostgreSQL)")
 	return nil
 }
 
@@ -208,7 +208,7 @@ func (s *PostgresStorage) ensureChannelColumn() error {
 		return fmt.Errorf("添加 channel 列失败: %w", err)
 	}
 
-	log.Println("[Storage] 已为 probe_history 表添加 channel 列 (PostgreSQL)")
+	logger.Info("storage", "已为 probe_history 表添加 channel 列 (PostgreSQL)")
 	return nil
 }
 
@@ -225,11 +225,11 @@ func (s *PostgresStorage) MigrateChannelData(mappings []ChannelMigrationMapping)
 	}
 
 	if len(mappings) == 0 {
-		log.Printf("[Storage] 检测到 %d 条 channel 为空的历史记录，但未提供迁移映射 (PostgreSQL)", pending)
+		logger.Info("storage", "检测到 channel 为空的历史记录，但未提供迁移映射 (PostgreSQL)", "pending", pending)
 		return nil
 	}
 
-	log.Printf("[Storage] 检测到 %d 条 channel 为空的历史记录，开始迁移 (PostgreSQL)", pending)
+	logger.Info("storage", "检测到 channel 为空的历史记录，开始迁移 (PostgreSQL)", "pending", pending)
 
 	var totalUpdated int64
 	for _, mapping := range mappings {
@@ -249,23 +249,21 @@ func (s *PostgresStorage) MigrateChannelData(mappings []ChannelMigrationMapping)
 		affected := tag.RowsAffected()
 		if affected > 0 {
 			totalUpdated += affected
-			log.Printf(
-				"[Storage] 已迁移 %d 条记录 -> channel=%s (provider=%s, service=%s, PostgreSQL)",
-				affected, mapping.Channel, mapping.Provider, mapping.Service,
-			)
+			logger.Info("storage", "已迁移记录 (PostgreSQL)",
+				"count", affected, "channel", mapping.Channel, "provider", mapping.Provider, "service", mapping.Service)
 		}
 	}
 
 	if totalUpdated == 0 {
-		log.Printf("[Storage] PostgreSQL channel 迁移：没有匹配的记录需要更新（可能缺少配置或 channel 仍为空）")
+		logger.Info("storage", "PostgreSQL channel 迁移：没有匹配的记录需要更新（可能缺少配置或 channel 仍为空）")
 		return nil
 	}
 
 	remaining := int64(pending) - totalUpdated
 	if remaining > 0 {
-		log.Printf("[Storage] PostgreSQL channel 迁移完成，共更新 %d 条记录，仍有 %d 条由于缺少配置未更新", totalUpdated, remaining)
+		logger.Info("storage", "PostgreSQL channel 迁移完成", "updated", totalUpdated, "remaining", remaining)
 	} else {
-		log.Printf("[Storage] PostgreSQL channel 迁移完成，共更新 %d 条记录", totalUpdated)
+		logger.Info("storage", "PostgreSQL channel 迁移完成", "updated", totalUpdated)
 	}
 
 	return nil
@@ -384,9 +382,7 @@ func (s *PostgresStorage) GetHistory(provider, service, channel string, since ti
 	}
 
 	// DESC 取数利用索引，返回前翻转为时间升序
-	for i, j := 0, len(records)-1; i < j; i, j = i+1, j-1 {
-		records[i], records[j] = records[j], records[i]
-	}
+	reverseRecords(records)
 
 	return records, nil
 }
@@ -404,7 +400,7 @@ func (s *PostgresStorage) CleanOldRecords(days int) error {
 
 	deleted := result.RowsAffected()
 	if deleted > 0 {
-		log.Printf("[Storage] 已清理 %d 条超过 %d 天的旧记录 (PostgreSQL)\n", deleted, days)
+		logger.Info("storage", "已清理旧记录 (PostgreSQL)", "deleted", deleted, "days", days)
 	}
 
 	return nil

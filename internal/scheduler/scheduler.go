@@ -2,12 +2,12 @@ package scheduler
 
 import (
 	"context"
-	"log"
 	"math/rand"
 	"sync"
 	"time"
 
 	"monitor/internal/config"
+	"monitor/internal/logger"
 	"monitor/internal/monitor"
 	"monitor/internal/storage"
 )
@@ -67,7 +67,7 @@ func (s *Scheduler) Start(ctx context.Context, cfg *config.AppConfig) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Println("[Scheduler] 调度器已停止")
+				logger.Info("scheduler", "调度器已停止")
 				s.mu.Lock()
 				s.ticker.Stop()
 				s.running = false
@@ -80,7 +80,7 @@ func (s *Scheduler) Start(ctx context.Context, cfg *config.AppConfig) {
 		}
 	}()
 
-	log.Printf("[Scheduler] 调度器已启动，间隔: %v", s.interval)
+	logger.Info("scheduler", "调度器已启动", "interval", s.interval)
 }
 
 // runChecks 执行所有检查（防重复）
@@ -89,7 +89,7 @@ func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool) {
 	// 防止重复执行
 	s.checkMu.Lock()
 	if s.checkInProgress {
-		log.Println("[Scheduler] 上一轮检查尚未完成，跳过本次")
+		logger.Info("scheduler", "上一轮检查尚未完成，跳过本次")
 		s.checkMu.Unlock()
 		return
 	}
@@ -111,7 +111,7 @@ func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool) {
 		return
 	}
 
-	log.Printf("[Scheduler] 开始巡检 %d 个监控项", len(cfg.Monitors))
+	logger.Info("scheduler", "开始巡检", "count", len(cfg.Monitors))
 
 	var wg sync.WaitGroup
 
@@ -125,14 +125,12 @@ func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool) {
 	if maxConcurrency == -1 {
 		// 无限制模式：每个监控项一个 goroutine
 		maxConcurrency = monitorCount
-		log.Printf("[Scheduler] 并发模式: 无限制 (并发数=%d)", maxConcurrency)
+		logger.Info("scheduler", "并发模式: 无限制", "concurrency", maxConcurrency)
 	} else if monitorCount > maxConcurrency {
 		// 硬上限模式：监控数超过上限时会排队
-		log.Printf("[Scheduler] 并发模式: 硬上限 (上限=%d, 监控项=%d, 将分批执行)",
-			maxConcurrency, monitorCount)
+		logger.Info("scheduler", "并发模式: 硬上限", "limit", maxConcurrency, "monitors", monitorCount)
 	} else {
-		log.Printf("[Scheduler] 并发模式: 正常 (并发数=%d, 监控项=%d)",
-			maxConcurrency, monitorCount)
+		logger.Info("scheduler", "并发模式: 正常", "concurrency", maxConcurrency, "monitors", monitorCount)
 	}
 
 	// 限制并发数
@@ -148,7 +146,7 @@ func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool) {
 			useStagger = false
 		} else {
 			jitterRange = baseDelay / 5 // ±20% 抖动
-			log.Printf("[Scheduler] 探测将按 %v 间隔错峰，抖动±%v", baseDelay, jitterRange)
+			logger.Info("scheduler", "探测将错峰执行", "base_delay", baseDelay, "jitter", jitterRange)
 		}
 	}
 
@@ -178,14 +176,14 @@ func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool) {
 
 			// 保存结果
 			if err := s.prober.SaveResult(result); err != nil {
-				log.Printf("[Scheduler] 保存结果失败 %s-%s-%s: %v",
-					t.Provider, t.Service, t.Channel, err)
+				logger.Error("scheduler", "保存结果失败",
+					"provider", t.Provider, "service", t.Service, "channel", t.Channel, "error", err)
 			}
 		}(task, idx)
 	}
 
 	wg.Wait()
-	log.Println("[Scheduler] 巡检完成")
+	logger.Info("scheduler", "巡检完成")
 }
 
 // UpdateConfig 更新配置（热更新时调用）
@@ -201,13 +199,13 @@ func (s *Scheduler) UpdateConfig(cfg *config.AppConfig) {
 			s.interval = cfg.IntervalDuration
 			if s.ticker != nil {
 				s.ticker.Reset(s.interval)
-				log.Printf("[Scheduler] 巡检间隔已更新为: %v", s.interval)
+				logger.Info("scheduler", "巡检间隔已更新", "interval", s.interval)
 			}
 		}
 		s.mu.Unlock()
 	}
 
-	log.Printf("[Scheduler] 配置已更新，下次巡检将使用新配置")
+	logger.Info("scheduler", "配置已更新，下次巡检将使用新配置")
 }
 
 // TriggerNow 立即触发一次巡检（热更新后调用）
@@ -219,7 +217,7 @@ func (s *Scheduler) TriggerNow() {
 
 	if running && ctx != nil {
 		go s.runChecks(ctx, false) // 手动触发不错峰
-		log.Printf("[Scheduler] 已触发即时巡检")
+		logger.Info("scheduler", "已触发即时巡检")
 	}
 }
 

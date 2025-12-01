@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
+
+	"monitor/internal/logger"
 
 	_ "modernc.org/sqlite" // 纯Go实现的SQLite驱动
 )
@@ -26,7 +27,7 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 	}
 
 	// 设置连接池参数（WAL模式支持更好的并发）
-	db.SetMaxOpenConns(1)  // SQLite建议单个写连接
+	db.SetMaxOpenConns(1) // SQLite建议单个写连接
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(time.Hour)
 
@@ -153,7 +154,7 @@ func (s *SQLiteStorage) ensureSubStatusColumn() error {
 		return fmt.Errorf("添加 sub_status 列失败: %w", err)
 	}
 
-	fmt.Println("[Storage] 已为 probe_history 表添加 sub_status 列")
+	logger.Info("storage", "已为 probe_history 表添加 sub_status 列")
 	return nil
 }
 
@@ -198,7 +199,7 @@ func (s *SQLiteStorage) ensureChannelColumn() error {
 		return fmt.Errorf("添加 channel 列失败: %w", err)
 	}
 
-	fmt.Println("[Storage] 已为 probe_history 表添加 channel 列")
+	logger.Info("storage", "已为 probe_history 表添加 channel 列")
 	return nil
 }
 
@@ -215,11 +216,11 @@ func (s *SQLiteStorage) MigrateChannelData(mappings []ChannelMigrationMapping) e
 	}
 
 	if len(mappings) == 0 {
-		log.Printf("[Storage] 检测到 %d 条 channel 为空的历史记录，但未提供迁移映射", pending)
+		logger.Info("storage", "检测到 channel 为空的历史记录，但未提供迁移映射", "pending", pending)
 		return nil
 	}
 
-	log.Printf("[Storage] 检测到 %d 条 channel 为空的历史记录，开始迁移", pending)
+	logger.Info("storage", "检测到 channel 为空的历史记录，开始迁移", "pending", pending)
 
 	var totalUpdated int64
 	for _, mapping := range mappings {
@@ -243,23 +244,21 @@ func (s *SQLiteStorage) MigrateChannelData(mappings []ChannelMigrationMapping) e
 
 		if affected > 0 {
 			totalUpdated += affected
-			log.Printf(
-				"[Storage] 已迁移 %d 条记录 -> channel=%s (provider=%s, service=%s)",
-				affected, mapping.Channel, mapping.Provider, mapping.Service,
-			)
+			logger.Info("storage", "已迁移记录",
+				"count", affected, "channel", mapping.Channel, "provider", mapping.Provider, "service", mapping.Service)
 		}
 	}
 
 	if totalUpdated == 0 {
-		log.Printf("[Storage] channel 迁移：没有匹配的记录需要更新（可能缺少配置或 channel 仍为空）")
+		logger.Info("storage", "channel 迁移：没有匹配的记录需要更新（可能缺少配置或 channel 仍为空）")
 		return nil
 	}
 
 	remaining := int64(pending) - totalUpdated
 	if remaining > 0 {
-		log.Printf("[Storage] channel 迁移完成，共更新 %d 条记录，仍有 %d 条由于缺少配置未更新", totalUpdated, remaining)
+		logger.Info("storage", "channel 迁移完成", "updated", totalUpdated, "remaining", remaining)
 	} else {
-		log.Printf("[Storage] channel 迁移完成，共更新 %d 条记录", totalUpdated)
+		logger.Info("storage", "channel 迁移完成", "updated", totalUpdated)
 	}
 
 	return nil
@@ -378,9 +377,7 @@ func (s *SQLiteStorage) GetHistory(provider, service, channel string, since time
 	}
 
 	// DESC 取数利用索引，返回前翻转为时间升序
-	for i, j := 0, len(records)-1; i < j; i, j = i+1, j-1 {
-		records[i], records[j] = records[j], records[i]
-	}
+	reverseRecords(records)
 
 	return records, nil
 }
@@ -398,7 +395,7 @@ func (s *SQLiteStorage) CleanOldRecords(days int) error {
 
 	deleted, _ := result.RowsAffected()
 	if deleted > 0 {
-		fmt.Printf("[Storage] 已清理 %d 条超过 %d 天的旧记录\n", deleted, days)
+		logger.Info("storage", "已清理旧记录", "deleted", deleted, "days", days)
 	}
 
 	return nil

@@ -10,73 +10,73 @@ import (
 // TestParseRequestPath 测试路径解析
 func TestParseRequestPath(t *testing.T) {
 	tests := []struct {
-		name             string
-		path             string
-		expectedLang     string
-		expectedSlug     string
+		name               string
+		path               string
+		expectedLang       string
+		expectedSlug       string
 		expectedIsProvider bool
 	}{
 		{
-			name:             "中文首页",
-			path:             "/",
-			expectedLang:     "zh-CN",
-			expectedSlug:     "",
+			name:               "中文首页",
+			path:               "/",
+			expectedLang:       "zh-CN",
+			expectedSlug:       "",
 			expectedIsProvider: false,
 		},
 		{
-			name:             "英文首页",
-			path:             "/en/",
-			expectedLang:     "en-US",
-			expectedSlug:     "",
+			name:               "英文首页",
+			path:               "/en/",
+			expectedLang:       "en-US",
+			expectedSlug:       "",
 			expectedIsProvider: false,
 		},
 		{
-			name:             "俄文首页",
-			path:             "/ru/",
-			expectedLang:     "ru-RU",
-			expectedSlug:     "",
+			name:               "俄文首页",
+			path:               "/ru/",
+			expectedLang:       "ru-RU",
+			expectedSlug:       "",
 			expectedIsProvider: false,
 		},
 		{
-			name:             "日文首页",
-			path:             "/ja/",
-			expectedLang:     "ja-JP",
-			expectedSlug:     "",
+			name:               "日文首页",
+			path:               "/ja/",
+			expectedLang:       "ja-JP",
+			expectedSlug:       "",
 			expectedIsProvider: false,
 		},
 		{
-			name:             "中文服务商页面",
-			path:             "/p/foxcode",
-			expectedLang:     "zh-CN",
-			expectedSlug:     "foxcode",
+			name:               "中文服务商页面",
+			path:               "/p/foxcode",
+			expectedLang:       "zh-CN",
+			expectedSlug:       "foxcode",
 			expectedIsProvider: true,
 		},
 		{
-			name:             "英文服务商页面",
-			path:             "/en/p/foxcode",
-			expectedLang:     "en-US",
-			expectedSlug:     "foxcode",
+			name:               "英文服务商页面",
+			path:               "/en/p/foxcode",
+			expectedLang:       "en-US",
+			expectedSlug:       "foxcode",
 			expectedIsProvider: true,
 		},
 		{
-			name:             "俄文服务商页面",
-			path:             "/ru/p/88code",
-			expectedLang:     "ru-RU",
-			expectedSlug:     "88code",
+			name:               "俄文服务商页面",
+			path:               "/ru/p/88code",
+			expectedLang:       "ru-RU",
+			expectedSlug:       "88code",
 			expectedIsProvider: true,
 		},
 		{
-			name:             "日文服务商页面",
-			path:             "/ja/p/easy-chat",
-			expectedLang:     "ja-JP",
-			expectedSlug:     "easy-chat",
+			name:               "日文服务商页面",
+			path:               "/ja/p/easy-chat",
+			expectedLang:       "ja-JP",
+			expectedSlug:       "easy-chat",
 			expectedIsProvider: true,
 		},
 		{
-			name:             "无效语言前缀",
-			path:             "/de/p/test",
-			expectedLang:     "zh-CN",
-			expectedSlug:     "",
+			name:               "无效语言前缀",
+			path:               "/de/p/test",
+			expectedLang:       "zh-CN",
+			expectedSlug:       "",
 			expectedIsProvider: false,
 		},
 	}
@@ -532,33 +532,33 @@ func TestInjectNoindexForInvalidPaths(t *testing.T) {
 // TestGeneratePageMetaCanonicalSafety 测试 canonical URL 基于 meta 数据生成，不依赖原始 path
 func TestGeneratePageMetaCanonicalSafety(t *testing.T) {
 	tests := []struct {
-		name             string
-		meta             MetaData
-		baseURL          string
+		name              string
+		meta              MetaData
+		baseURL           string
 		expectedCanonical string
 	}{
 		{
 			name: "服务商页面：使用 slug 构建 canonical",
 			meta: MetaData{
-				Title:       "Test",
-				Description: "Test",
-				Language:    Language{Code: "zh-CN", PathPrefix: "", HreflangTag: "zh-Hans"},
-				Slug:        "foxcode",
-				ProviderName: "FoxCode",
+				Title:          "Test",
+				Description:    "Test",
+				Language:       Language{Code: "zh-CN", PathPrefix: "", HreflangTag: "zh-Hans"},
+				Slug:           "foxcode",
+				ProviderName:   "FoxCode",
 				IsProviderPage: true,
 			},
-			baseURL:     "https://relaypulse.top",
+			baseURL:           "https://relaypulse.top",
 			expectedCanonical: `    <link rel="canonical" href="https://relaypulse.top/p/foxcode">`,
 		},
 		{
 			name: "首页：使用语言前缀构建 canonical",
 			meta: MetaData{
-				Title:       "Test",
-				Description: "Test",
-				Language:    Language{Code: "en-US", PathPrefix: "en", HreflangTag: "en"},
+				Title:          "Test",
+				Description:    "Test",
+				Language:       Language{Code: "en-US", PathPrefix: "en", HreflangTag: "en"},
 				IsProviderPage: false,
 			},
-			baseURL:     "https://relaypulse.top",
+			baseURL:           "https://relaypulse.top",
 			expectedCanonical: `    <link rel="canonical" href="https://relaypulse.top/en/">`,
 		},
 	}
@@ -616,4 +616,3 @@ func TestIsValidHomePath(t *testing.T) {
 		})
 	}
 }
-

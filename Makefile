@@ -31,7 +31,7 @@ CONFIG ?= config.yaml
 # 开发环境 CORS 配置（允许前端开发服务器访问）
 MONITOR_CORS_ORIGINS ?= http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,http://localhost:3000
 
-.PHONY: help build run dev test fmt clean install-air release docker-build
+.PHONY: help build run dev test fmt clean install-air release docker-build ci
 
 # 默认目标：显示帮助
 help:
@@ -42,6 +42,7 @@ help:
 	@echo "  make run           - 直接运行（无热重载）"
 	@echo "  make dev           - 开发模式（热重载，需要air）"
 	@echo "  make test          - 运行测试"
+	@echo "  make ci            - 本地模拟 CI 检查（lint + test）"
 	@echo "  make fmt           - 格式化代码"
 	@echo "  make clean         - 清理编译产物"
 	@echo "  make install-air   - 安装air热重载工具"
@@ -134,3 +135,34 @@ tidy:
 	@echo "正在整理依赖..."
 	$(GOMOD) tidy
 	@echo "依赖整理完成"
+
+# CI 检查（本地模拟 GitHub Actions 流程）
+ci:
+	@echo "=========================================="
+	@echo "  本地 CI 检查"
+	@echo "=========================================="
+	@echo ""
+	@echo ">> Go 格式检查..."
+	@if [ -n "$$(gofmt -l .)" ]; then \
+		echo "以下文件格式不正确:"; \
+		gofmt -l .; \
+		exit 1; \
+	fi
+	@echo "✓ Go 格式检查通过"
+	@echo ""
+	@echo ">> Go vet..."
+	$(GOCMD) vet ./...
+	@echo "✓ Go vet 通过"
+	@echo ""
+	@echo ">> Go 测试..."
+	$(GOTEST) -v ./...
+	@echo "✓ Go 测试通过"
+	@echo ""
+	@echo ">> 前端依赖安装..."
+	@cd frontend && npm ci
+	@echo ">> 前端 lint..."
+	@cd frontend && npm run lint || echo "⚠ 前端 lint 有警告（不阻塞）"
+	@echo ""
+	@echo "=========================================="
+	@echo "  CI 检查完成"
+	@echo "=========================================="

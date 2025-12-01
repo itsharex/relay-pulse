@@ -9,15 +9,15 @@ import (
 type SubStatus string
 
 const (
-	SubStatusNone            SubStatus = ""                   // 默认值（绿色或灰色无需细分）
-	SubStatusSlowLatency     SubStatus = "slow_latency"       // 响应慢
-	SubStatusRateLimit       SubStatus = "rate_limit"         // 限流（429）
-	SubStatusServerError     SubStatus = "server_error"       // 服务器错误（5xx）
-	SubStatusClientError     SubStatus = "client_error"       // 客户端错误（4xx）
-	SubStatusAuthError       SubStatus = "auth_error"         // 认证/权限失败（401/403）
-	SubStatusInvalidRequest  SubStatus = "invalid_request"    // 请求参数错误（400）
-	SubStatusNetworkError    SubStatus = "network_error"      // 网络错误（连接失败）
-	SubStatusContentMismatch SubStatus = "content_mismatch"   // 内容校验失败
+	SubStatusNone            SubStatus = ""                 // 默认值（绿色或灰色无需细分）
+	SubStatusSlowLatency     SubStatus = "slow_latency"     // 响应慢
+	SubStatusRateLimit       SubStatus = "rate_limit"       // 限流（429）
+	SubStatusServerError     SubStatus = "server_error"     // 服务器错误（5xx）
+	SubStatusClientError     SubStatus = "client_error"     // 客户端错误（4xx）
+	SubStatusAuthError       SubStatus = "auth_error"       // 认证/权限失败（401/403）
+	SubStatusInvalidRequest  SubStatus = "invalid_request"  // 请求参数错误（400）
+	SubStatusNetworkError    SubStatus = "network_error"    // 网络错误（连接失败）
+	SubStatusContentMismatch SubStatus = "content_mismatch" // 内容校验失败
 )
 
 // ProbeRecord 探测记录
