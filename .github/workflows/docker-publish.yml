@@ -39,6 +39,17 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Build frontend for Go embed
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy frontend dist to internal/api
+        run: |
+          mkdir -p internal/api/frontend
+          cp -r frontend/dist internal/api/frontend/
+
       - name: Go format check
         run: |
           if [ -n "$(gofmt -l .)" ]; then
@@ -55,9 +66,7 @@ jobs:
 
       - name: Frontend lint
         working-directory: frontend
-        run: |
-          npm ci
-          npm run lint
+        run: npm run lint
 
   # 构建和推送 Docker 镜像（依赖测试通过）
   build-and-push:
