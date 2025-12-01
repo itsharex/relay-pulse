@@ -19,7 +19,6 @@ type Scheduler struct {
 	ticker   *time.Ticker
 	running  bool
 	mu       sync.Mutex
-	rnd      *rand.Rand // 用于错峰调度的随机数生成器
 
 	// 配置引用（支持热更新）
 	cfg   *config.AppConfig
@@ -38,7 +37,6 @@ func NewScheduler(store storage.Storage, interval time.Duration) *Scheduler {
 	return &Scheduler{
 		prober:   monitor.NewProber(store),
 		interval: interval,
-		rnd:      rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -59,8 +57,8 @@ func (s *Scheduler) Start(ctx context.Context, cfg *config.AppConfig) {
 	s.cfgMu.Unlock()
 	s.mu.Unlock()
 
-	// 立即执行一次（不错峰，确保启动时快速得出结论）
-	go s.runChecks(ctx, false)
+	// 立即执行一次（启动模式错峰，使用固定 2 秒间隔避免瞬时压力）
+	go s.runChecks(ctx, true, true)
 
 	// 定时执行
 	go func() {
@@ -75,7 +73,7 @@ func (s *Scheduler) Start(ctx context.Context, cfg *config.AppConfig) {
 				return
 
 			case <-s.ticker.C:
-				s.runChecks(ctx, true) // 周期性巡检启用错峰
+				s.runChecks(ctx, true, false) // 周期性巡检启用错峰，非启动模式
 			}
 		}
 	}()
@@ -85,7 +83,8 @@ func (s *Scheduler) Start(ctx context.Context, cfg *config.AppConfig) {
 
 // runChecks 执行所有检查（防重复）
 // allowStagger 为 true 时，会在当前巡检周期内为不同监控项注入错峰延迟
-func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool) {
+// startupMode 为 true 时，使用固定 2 秒间隔而非按 interval 计算，避免启动过慢
+func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool, startupMode bool) {
 	// 防止重复执行
 	s.checkMu.Lock()
 	if s.checkInProgress {
@@ -141,12 +140,20 @@ func (s *Scheduler) runChecks(ctx context.Context, allowStagger bool) {
 	var baseDelay time.Duration
 	var jitterRange time.Duration
 	if useStagger {
-		baseDelay = s.interval / time.Duration(monitorCount)
-		if baseDelay <= 0 {
-			useStagger = false
+		if startupMode {
+			// 启动模式：固定 2 秒间隔，避免同时发起大量请求
+			baseDelay = 2 * time.Second
+			jitterRange = 400 * time.Millisecond // ±20%
+			logger.Info("scheduler", "启动模式：探测将以固定间隔错峰执行", "base_delay", baseDelay, "jitter", jitterRange)
 		} else {
-			jitterRange = baseDelay / 5 // ±20% 抖动
-			logger.Info("scheduler", "探测将错峰执行", "base_delay", baseDelay, "jitter", jitterRange)
+			// 常规模式：按 interval 均分
+			baseDelay = s.interval / time.Duration(monitorCount)
+			if baseDelay <= 0 {
+				useStagger = false
+			} else {
+				jitterRange = baseDelay / 5 // ±20% 抖动
+				logger.Info("scheduler", "探测将错峰执行", "base_delay", baseDelay, "jitter", jitterRange)
+			}
 		}
 	}
 
@@ -216,7 +223,7 @@ func (s *Scheduler) TriggerNow() {
 	s.mu.Unlock()
 
 	if running && ctx != nil {
-		go s.runChecks(ctx, false) // 手动触发不错峰
+		go s.runChecks(ctx, false, false) // 手动触发不错峰
 		logger.Info("scheduler", "已触发即时巡检")
 	}
 }
@@ -236,9 +243,10 @@ func (s *Scheduler) Stop() {
 
 // computeStaggerDelay 计算错峰延迟时间
 // 基准延迟 + 随机抖动（±20%）
+// 注意：使用全局 rand（Go 1.20+ 并发安全）
 func (s *Scheduler) computeStaggerDelay(baseDelay, jitterRange time.Duration, index int) time.Duration {
 	delay := baseDelay * time.Duration(index)
-	if jitterRange <= 0 || s.rnd == nil {
+	if jitterRange <= 0 {
 		if delay < 0 {
 			return 0
 		}
@@ -253,8 +261,8 @@ func (s *Scheduler) computeStaggerDelay(baseDelay, jitterRange time.Duration, in
 		return delay
 	}
 
-	// 随机抖动：±jitterRange
-	offset := s.rnd.Int63n(max*2+1) - max
+	// 随机抖动：±jitterRange（使用全局 rand，Go 1.20+ 并发安全）
+	offset := rand.Int63n(max*2+1) - max
 	delay += time.Duration(offset)
 	if delay < 0 {
 		return 0

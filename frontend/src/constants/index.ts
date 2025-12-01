@@ -111,6 +111,12 @@ export const STATUS_COLORS = {
   },
 } as const;
 
+// 无数据时间块的默认可用率（%）
+// 新服务商因历史数据少，使用 90% 作为默认值
+// - 不像 0% 那样对新服务商过于严苛
+// - 也不像 100% 那样让新服务商获得不公平优势
+export const NO_DATA_AVAILABILITY = 90;
+
 // API 基础 URL（使用相对路径，自动适配当前域名）
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 

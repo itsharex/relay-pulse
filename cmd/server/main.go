@@ -65,7 +65,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info("main", "配置加载完成", "monitors", len(cfg.Monitors))
+	logger.Info("main", "配置加载完成",
+		"monitors", len(cfg.Monitors),
+		"interval", cfg.Interval,
+		"max_concurrency", cfg.MaxConcurrency,
+		"stagger_probes", cfg.StaggerProbes,
+		"slow_latency", cfg.SlowLatency,
+		"degraded_weight", cfg.DegradedWeight,
+	)
 
 	// 初始化存储（支持 SQLite 和 PostgreSQL）
 	store, err := storage.New(&cfg.Storage)
