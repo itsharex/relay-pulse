@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -60,5 +61,11 @@ export default defineConfig(({ mode }) => {
     },
 
     // Vite 的开发服务器默认支持 SPA 路由回退
+
+    // Vitest 测试配置
+    test: {
+      globals: true,
+      environment: 'node', // 纯函数测试不需要 DOM
+    },
   }
 })

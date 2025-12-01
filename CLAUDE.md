@@ -90,6 +90,12 @@ npm run lint
 
 # 预览生产构建
 npm run preview
+
+# 运行测试
+npm run test
+
+# 测试监听模式
+npm run test:watch
 ```
 
 ### Pre-commit Hooks
@@ -583,6 +589,22 @@ curl "http://localhost:8080/api/status?period=7d&provider=88code"
 - 测试文件与源文件放在一起（`*_test.go`）
 - 关键测试文件：`internal/config/config_test.go`、`internal/monitor/probe_test.go`
 - 使用 `go test -v` 查看详细输出
+
+### 前端测试
+
+- 测试框架：Vitest
+- 测试文件：`frontend/src/utils/*.test.ts`
+- 关键测试：`sortMonitors.test.ts` - 排序逻辑单元测试（主排序、二级延迟排序、边界情况）
+
+```bash
+cd frontend
+
+# 运行测试
+npm run test
+
+# 监听模式（开发时使用）
+npm run test:watch
+```
 
 ### 手动集成测试
 

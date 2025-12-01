@@ -8,9 +8,10 @@ import type {
   StatusCounts,
   ProviderOption,
 } from '../types';
-import { API_BASE_URL, STATUS, USE_MOCK_DATA } from '../constants';
+import { API_BASE_URL, USE_MOCK_DATA } from '../constants';
 import { fetchMockMonitorData } from '../utils/mockMonitor';
 import { trackAPIPerformance, trackAPIError } from '../utils/analytics';
+import { sortMonitors } from '../utils/sortMonitors';
 
 // URL 二次校验函数
 function validateUrl(url: string | undefined): string | null {
@@ -244,40 +245,7 @@ export function useMonitorData({
       return matchService && matchProvider && matchChannel && matchCategory;
     });
 
-    if (sortConfig.key) {
-      filtered.sort((a, b) => {
-        let aValue: number | string = a[sortConfig.key as keyof ProcessedMonitorData] as number | string;
-        let bValue: number | string = b[sortConfig.key as keyof ProcessedMonitorData] as number | string;
-
-        if (sortConfig.key === 'currentStatus') {
-          aValue = STATUS[a.currentStatus].weight;
-          bValue = STATUS[b.currentStatus].weight;
-        }
-
-        // uptime 特殊排序规则：
-        // - uptime < 0 表示无数据，始终排在最后
-        // - 升序：无数据映射为 +Infinity
-        // - 降序：无数据映射为 -Infinity
-        if (sortConfig.key === 'uptime') {
-          const normalizeUptime = (value: number): number => {
-            if (value < 0) {
-              return sortConfig.direction === 'asc'
-                ? Number.POSITIVE_INFINITY
-                : Number.NEGATIVE_INFINITY;
-            }
-            return value;
-          };
-          aValue = normalizeUptime(a.uptime);
-          bValue = normalizeUptime(b.uptime);
-        }
-
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return filtered;
+    return sortMonitors(filtered, sortConfig);
   }, [rawData, filterService, filterProvider, filterChannel, filterCategory, sortConfig]);
 
   // 统计数据
