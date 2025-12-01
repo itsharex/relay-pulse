@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import i18n from '../i18n';
 import type {
   ApiResponse,
@@ -46,6 +46,9 @@ const statusMap: Record<number, StatusKey> = {
   '-1': 'MISSING',  // 缺失数据
 };
 
+// 自动轮询间隔（毫秒）- 与后端探测频率 interval: "1m" 保持一致
+const POLL_INTERVAL_MS = 60_000;
+
 // 映射状态计数，提供默认值以向后兼容
 const mapStatusCounts = (counts?: StatusCounts): StatusCounts => ({
   available: counts?.available ?? 0,
@@ -84,6 +87,12 @@ export function useMonitorData({
   const [rawData, setRawData] = useState<ProcessedMonitorData[]>([]);
   const [reloadToken, setReloadToken] = useState(0);
   const [slowLatencyMs, setSlowLatencyMs] = useState<number>(5000); // 默认 5 秒
+
+  // 统一的刷新触发器，供手动刷新与自动轮询复用
+  const triggerRefetch = useCallback(() => {
+    setLoading(true);
+    setReloadToken((token) => token + 1);
+  }, []);
 
   // 数据获取 - 支持双模式（Mock / API）
   useEffect(() => {
@@ -207,6 +216,43 @@ export function useMonitorData({
     };
   }, [timeRange, reloadToken]);
 
+  // 页面可见性驱动的自动轮询
+  useEffect(() => {
+    // SSR 环境保护
+    if (typeof document === 'undefined') return;
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (document.visibilityState !== 'visible' || intervalId) return;
+      intervalId = setInterval(triggerRefetch, POLL_INTERVAL_MS);
+    };
+
+    const stopPolling = () => {
+      if (!intervalId) return;
+      clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        triggerRefetch(); // 页面重新可见时立即刷新
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    // 初始化：仅在页面可见时启动轮询
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [triggerRefetch]);
+
   // 提取所有通道列表（去重并排序）
   const channels = useMemo(() => {
     const set = new Set<string>();
@@ -264,11 +310,6 @@ export function useMonitorData({
     channels,
     providers,
     slowLatencyMs,
-    refetch: () => {
-      // 真正触发重新获取 - 修复刷新按钮无效的问题
-      // 保持旧数据可见，直到新数据到来（与 docs/front.jsx 一致）
-      setLoading(true);
-      setReloadToken((token) => token + 1);
-    },
+    refetch: triggerRefetch,
   };
 }
