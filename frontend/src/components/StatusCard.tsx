@@ -5,7 +5,7 @@ import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
 import { ExternalLink } from './ExternalLink';
 import { getStatusConfig, getTimeRanges } from '../constants';
-import { availabilityToColor } from '../utils/color';
+import { availabilityToColor, latencyToColor } from '../utils/color';
 import { aggregateHeatmap } from '../utils/heatmapAggregator';
 import type { ProcessedMonitorData } from '../types';
 
@@ -14,7 +14,9 @@ type HistoryPoint = ProcessedMonitorData['history'][number];
 interface StatusCardProps {
   item: ProcessedMonitorData;
   timeRange: string;
+  slowLatencyMs: number;
   showCategoryTag?: boolean; // 预留 prop，保持接口一致性（StatusCard 设计上不显示分类标签）
+  showProvider?: boolean;    // 是否显示服务商名称，默认 true
   onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
   onBlockLeave: () => void;
 }
@@ -22,7 +24,9 @@ interface StatusCardProps {
 export function StatusCard({
   item,
   timeRange,
+  slowLatencyMs,
   showCategoryTag: _showCategoryTag,
+  showProvider = true,
   onBlockHover,
   onBlockLeave
 }: StatusCardProps) {
@@ -57,9 +61,11 @@ export function StatusCard({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base sm:text-lg font-bold text-slate-100">
-                <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
-              </h3>
+              {showProvider && (
+                <h3 className="text-base sm:text-lg font-bold text-slate-100">
+                  <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
+                </h3>
+              )}
               <span
                 className={`px-2 py-0.5 rounded text-[10px] font-mono border flex-shrink-0 ${
                   item.serviceType === 'cc'
@@ -101,7 +107,9 @@ export function StatusCard({
                 })}
               </span>
               {item.lastCheckLatency !== undefined && (
-                <span className="text-slate-600">{item.lastCheckLatency}ms</span>
+                <span style={{ color: latencyToColor(item.lastCheckLatency, slowLatencyMs) }}>
+                  {item.lastCheckLatency}ms
+                </span>
               )}
             </div>
           )}

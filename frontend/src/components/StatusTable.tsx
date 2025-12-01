@@ -5,7 +5,7 @@ import { StatusDot } from './StatusDot';
 import { HeatmapBlock } from './HeatmapBlock';
 import { ExternalLink } from './ExternalLink';
 import { getStatusConfig, getTimeRanges } from '../constants';
-import { availabilityToColor } from '../utils/color';
+import { availabilityToColor, latencyToColor } from '../utils/color';
 import { aggregateHeatmap } from '../utils/heatmapAggregator';
 import { createMediaQueryEffect } from '../utils/mediaQuery';
 import type { ProcessedMonitorData, SortConfig } from '../types';
@@ -16,7 +16,10 @@ interface StatusTableProps {
   data: ProcessedMonitorData[];
   sortConfig: SortConfig;
   timeRange: string;
+  slowLatencyMs: number;
   showCategoryTag?: boolean; // 是否显示分类标签（推荐/公益），默认 true
+  showProvider?: boolean;    // 是否显示服务商名称，默认 true
+  showSponsor?: boolean;     // 是否显示赞助者信息，默认 true
   onSort: (key: string) => void;
   onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
   onBlockLeave: () => void;
@@ -25,12 +28,18 @@ interface StatusTableProps {
 // 移动端卡片列表项组件
 function MobileListItem({
   item,
+  slowLatencyMs,
   showCategoryTag = true,
+  showProvider = true,
+  showSponsor = true,
   onBlockHover,
   onBlockLeave,
 }: {
   item: ProcessedMonitorData;
+  slowLatencyMs: number;
   showCategoryTag?: boolean;
+  showProvider?: boolean;
+  showSponsor?: boolean;
   onBlockHover: (e: React.MouseEvent<HTMLDivElement>, point: HistoryPoint) => void;
   onBlockLeave: () => void;
 }) {
@@ -61,9 +70,11 @@ function MobileListItem({
           {/* 服务商名称 */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-slate-100 truncate">
-                <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
-              </span>
+              {showProvider && (
+                <span className="font-semibold text-slate-100 truncate">
+                  <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
+                </span>
+              )}
               {/* Category 标签 - 可通过 showCategoryTag 控制显示 */}
               {showCategoryTag && (
                 <span
@@ -146,12 +157,14 @@ function MobileListItem({
       {/* 展开的详细信息 */}
       {expanded && (
         <div className="pt-3 border-t border-slate-800 space-y-2 text-xs">
-          <div className="flex justify-between">
-            <span className="text-slate-500">{t('common.sponsor')}</span>
-            <span className="text-slate-300">
-              <ExternalLink href={item.sponsorUrl}>{item.sponsor}</ExternalLink>
-            </span>
-          </div>
+          {showSponsor && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">{t('common.sponsor')}</span>
+              <span className="text-slate-300">
+                <ExternalLink href={item.sponsorUrl}>{item.sponsor}</ExternalLink>
+              </span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-slate-500">{t('common.channel')}</span>
             <span className="text-slate-300">{item.channel || '-'}</span>
@@ -172,7 +185,12 @@ function MobileListItem({
           {item.lastCheckLatency !== undefined && (
             <div className="flex justify-between">
               <span className="text-slate-500">{t('common.latency')}</span>
-              <span className="text-slate-300 font-mono">{item.lastCheckLatency}ms</span>
+              <span
+                className="font-mono"
+                style={{ color: latencyToColor(item.lastCheckLatency, slowLatencyMs) }}
+              >
+                {item.lastCheckLatency}ms
+              </span>
             </div>
           )}
         </div>
@@ -229,7 +247,10 @@ export function StatusTable({
   data,
   sortConfig,
   timeRange,
+  slowLatencyMs,
   showCategoryTag = true,
+  showProvider = true,
+  showSponsor = true,
   onSort,
   onBlockHover,
   onBlockLeave,
@@ -266,7 +287,10 @@ export function StatusTable({
             <MobileListItem
               key={item.id}
               item={item}
+              slowLatencyMs={slowLatencyMs}
               showCategoryTag={showCategoryTag}
+              showProvider={showProvider}
+              showSponsor={showSponsor}
               onBlockHover={onBlockHover}
               onBlockLeave={onBlockLeave}
             />
@@ -282,22 +306,26 @@ export function StatusTable({
       <table className="w-full text-left border-collapse bg-slate-900/40 backdrop-blur-sm">
         <thead>
           <tr className="border-b border-slate-700/50 text-slate-400 text-xs uppercase tracking-wider">
-            <th
-              className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
-              onClick={() => onSort('providerName')}
-            >
-              <div className="flex items-center">
-                {t('table.headers.provider')} <SortIcon columnKey="providerName" />
-              </div>
-            </th>
-            <th
-              className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
-              onClick={() => onSort('sponsor')}
-            >
-              <div className="flex items-center">
-                {t('table.headers.sponsor')} <SortIcon columnKey="sponsor" />
-              </div>
-            </th>
+            {showProvider && (
+              <th
+                className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
+                onClick={() => onSort('providerName')}
+              >
+                <div className="flex items-center">
+                  {t('table.headers.provider')} <SortIcon columnKey="providerName" />
+                </div>
+              </th>
+            )}
+            {showSponsor && (
+              <th
+                className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
+                onClick={() => onSort('sponsor')}
+              >
+                <div className="flex items-center">
+                  {t('table.headers.sponsor')} <SortIcon columnKey="sponsor" />
+                </div>
+              </th>
+            )}
             <th
               className="p-4 font-medium cursor-pointer hover:text-cyan-400 transition-colors"
               onClick={() => onSort('serviceType')}
@@ -347,27 +375,31 @@ export function StatusTable({
               key={item.id}
               className="group hover:bg-slate-800/40 transition-[background-color,color]"
             >
-              <td className="p-4 font-medium text-slate-200">
-                <div className="flex items-center gap-2">
-                  <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
-                  {/* Category 标签 - 可通过 showCategoryTag 控制显示 */}
-                  {showCategoryTag && (
-                    <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                        item.category === 'commercial'
-                          ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
-                          : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
-                      }`}
-                      title={item.category === 'commercial' ? t('table.categoryLabels.promoted') : t('table.categoryLabels.charity')}
-                    >
-                      {item.category === 'commercial' ? t('table.categoryShort.promoted') : t('table.categoryShort.charity')}
-                    </span>
-                  )}
-                </div>
-              </td>
-              <td className="p-4 text-slate-300 text-sm">
-                <ExternalLink href={item.sponsorUrl}>{item.sponsor}</ExternalLink>
-              </td>
+              {showProvider && (
+                <td className="p-4 font-medium text-slate-200">
+                  <div className="flex items-center gap-2">
+                    <ExternalLink href={item.providerUrl}>{item.providerName}</ExternalLink>
+                    {/* Category 标签 - 可通过 showCategoryTag 控制显示 */}
+                    {showCategoryTag && (
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                          item.category === 'commercial'
+                            ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+                            : 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/30'
+                        }`}
+                        title={item.category === 'commercial' ? t('table.categoryLabels.promoted') : t('table.categoryLabels.charity')}
+                      >
+                        {item.category === 'commercial' ? t('table.categoryShort.promoted') : t('table.categoryShort.charity')}
+                      </span>
+                    )}
+                  </div>
+                </td>
+              )}
+              {showSponsor && (
+                <td className="p-4 text-slate-300 text-sm">
+                  <ExternalLink href={item.sponsorUrl}>{item.sponsor}</ExternalLink>
+                </td>
+              )}
               <td className="p-4">
                 <span
                   className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border ${
@@ -402,7 +434,12 @@ export function StatusTable({
                   <div className="text-xs text-slate-400 font-mono flex flex-col gap-0.5">
                     <span>{new Date(item.lastCheckTimestamp * 1000).toLocaleString(i18n.language, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     {item.lastCheckLatency !== undefined && (
-                      <span className="text-slate-600 text-[10px]">{item.lastCheckLatency}ms</span>
+                      <span
+                        className="text-[10px] font-mono"
+                        style={{ color: latencyToColor(item.lastCheckLatency, slowLatencyMs) }}
+                      >
+                        {item.lastCheckLatency}ms
+                      </span>
                     )}
                   </div>
                 ) : (

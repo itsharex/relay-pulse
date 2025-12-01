@@ -51,7 +51,7 @@ export default function ProviderPage() {
   });
 
   // 数据获取 - 先获取全部数据用于构建映射
-  const { data: allData, loading, error, stats, channels, refetch } = useMonitorData({
+  const { data: allData, loading, error, stats, channels, slowLatencyMs, refetch } = useMonitorData({
     timeRange,
     filterService,
     filterProvider: 'all', // 先获取全部数据
@@ -134,7 +134,7 @@ export default function ProviderPage() {
 
       <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500 selection:text-white overflow-x-hidden">
         {/* 全局 Tooltip */}
-        <Tooltip tooltip={tooltip} onClose={handleBlockLeave} />
+        <Tooltip tooltip={tooltip} onClose={handleBlockLeave} slowLatencyMs={slowLatencyMs} />
 
         {/* 背景装饰 */}
         {!isEmbedMode && (
@@ -193,7 +193,10 @@ export default function ProviderPage() {
                   data={data}
                   sortConfig={sortConfig}
                   timeRange={timeRange}
+                  slowLatencyMs={slowLatencyMs}
                   showCategoryTag={false}
+                  showProvider={!isEmbedMode}
+                  showSponsor={false}
                   onSort={handleSort}
                   onBlockHover={handleBlockHover}
                   onBlockLeave={handleBlockLeave}
@@ -207,7 +210,9 @@ export default function ProviderPage() {
                       key={item.id}
                       item={item}
                       timeRange={timeRange}
+                      slowLatencyMs={slowLatencyMs}
                       showCategoryTag={false}
+                      showProvider={!isEmbedMode}
                       onBlockHover={handleBlockHover}
                       onBlockLeave={handleBlockLeave}
                     />
