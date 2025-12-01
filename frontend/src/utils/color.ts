@@ -63,3 +63,44 @@ export function availabilityToStyle(availability: number): CSSProperties {
     backgroundColor: availabilityToColor(availability),
   };
 }
+
+/**
+ * 根据延迟计算渐变颜色
+ * - 延迟越低越好（与可用率相反）
+ * - 基于 slow_latency 阈值进行相对渐变
+ *
+ * 渐变逻辑：
+ * - latency <= 0 → 灰色（无数据）
+ * - latency < 30% 阈值 → 绿色（优秀）
+ * - 30%-100% 阈值 → 绿到黄渐变（良好）
+ * - 100%-200% 阈值 → 黄到红渐变（较慢）
+ * - >= 200% 阈值 → 红色（很慢）
+ */
+export function latencyToColor(latency: number, slowLatencyMs: number): string {
+  // 无数据或配置无效
+  if (latency <= 0 || slowLatencyMs <= 0) {
+    return `rgb(${GRAY.r}, ${GRAY.g}, ${GRAY.b})`;
+  }
+
+  const ratio = latency / slowLatencyMs;
+
+  // < 30% 阈值 → 绿色
+  if (ratio < 0.3) {
+    return `rgb(${GREEN.r}, ${GREEN.g}, ${GREEN.b})`;
+  }
+
+  // 30%-100% 阈值 → 绿到黄渐变
+  if (ratio < 1) {
+    const t = (ratio - 0.3) / 0.7;
+    return lerpColor(GREEN, YELLOW, t);
+  }
+
+  // 100%-200% 阈值 → 黄到红渐变
+  if (ratio < 2) {
+    const t = (ratio - 1) / 1;
+    return lerpColor(YELLOW, RED, t);
+  }
+
+  // >= 200% 阈值 → 红色
+  return `rgb(${RED.r}, ${RED.g}, ${RED.b})`;
+}

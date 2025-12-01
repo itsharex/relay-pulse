@@ -82,6 +82,7 @@ export function useMonitorData({
   const [error, setError] = useState<string | null>(null);
   const [rawData, setRawData] = useState<ProcessedMonitorData[]>([]);
   const [reloadToken, setReloadToken] = useState(0);
+  const [slowLatencyMs, setSlowLatencyMs] = useState<number>(5000); // 默认 5 秒
 
   // 数据获取 - 支持双模式（Mock / API）
   useEffect(() => {
@@ -118,6 +119,11 @@ export function useMonitorData({
 
           // 追踪成功的 API 性能
           trackAPIPerformance('/api/status', duration, true);
+
+          // 提取慢延迟阈值（用于延迟颜色渐变）
+          if (json.meta.slow_latency_ms && json.meta.slow_latency_ms > 0) {
+            setSlowLatencyMs(json.meta.slow_latency_ms);
+          }
 
           // 转换为前端数据格式
           processed = json.data.map((item) => {
@@ -289,6 +295,7 @@ export function useMonitorData({
     stats,
     channels,
     providers,
+    slowLatencyMs,
     refetch: () => {
       // 真正触发重新获取 - 修复刷新按钮无效的问题
       // 保持旧数据可见，直到新数据到来（与 docs/front.jsx 一致）

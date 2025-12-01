@@ -50,6 +50,7 @@ export interface ApiResponse {
   meta: {
     period: string;
     count: number;
+    slow_latency_ms?: number;  // 慢延迟阈值（毫秒），用于延迟颜色渐变
   };
   data: MonitorResult[];
 }

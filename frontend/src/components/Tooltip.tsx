@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TooltipState } from '../types';
-import { availabilityToColor } from '../utils/color';
+import { availabilityToColor, latencyToColor } from '../utils/color';
 import { createMediaQueryEffect } from '../utils/mediaQuery';
 
 interface TooltipProps {
   tooltip: TooltipState;
+  slowLatencyMs: number;
   onClose?: () => void;
 }
 
-export function Tooltip({ tooltip, onClose }: TooltipProps) {
+export function Tooltip({ tooltip, slowLatencyMs, onClose }: TooltipProps) {
   const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
 
@@ -76,8 +77,11 @@ export function Tooltip({ tooltip, onClose }: TooltipProps) {
         </div>
       )}
       {tooltip.data!.latency > 0 && (
-        <div className="text-slate-500 text-[10px] text-center">
-          {t('tooltip.latency')} {tooltip.data!.latency}ms
+        <div className="text-[10px] text-center">
+          <span className="text-slate-500">{t('tooltip.latency')} </span>
+          <span style={{ color: latencyToColor(tooltip.data!.latency, slowLatencyMs) }}>
+            {tooltip.data!.latency}ms
+          </span>
         </div>
       )}
 

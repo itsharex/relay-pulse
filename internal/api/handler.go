@@ -210,6 +210,7 @@ func (h *Handler) queryAndSerialize(ctx context.Context, period, qProvider, qSer
 	degradedWeight := h.config.DegradedWeight
 	enableConcurrent := h.config.EnableConcurrentQuery
 	concurrentLimit := h.config.ConcurrentQueryLimit
+	slowLatencyMs := int(h.config.SlowLatencyDuration / time.Millisecond)
 	h.cfgMu.RUnlock()
 
 	// 构建 slug -> provider 映射（slug作为provider的路由别名）
@@ -250,8 +251,9 @@ func (h *Handler) queryAndSerialize(ctx context.Context, period, qProvider, qSer
 	// 序列化为 JSON
 	result := gin.H{
 		"meta": gin.H{
-			"period": period,
-			"count":  len(response),
+			"period":          period,
+			"count":           len(response),
+			"slow_latency_ms": slowLatencyMs,
 		},
 		"data": response,
 	}
@@ -408,7 +410,8 @@ func (h *Handler) parsePeriod(period string) (time.Time, error) {
 type bucketStats struct {
 	total           int                  // 总探测次数
 	weightedSuccess float64              // 累积成功权重（绿=1.0, 黄=degraded_weight, 红=0.0）
-	latencySum      int64                // 延迟总和
+	latencySum      int64                // 延迟总和（仅统计可用状态）
+	latencyCount    int                  // 有效延迟计数（仅 status > 0 的记录）
 	last            *storage.ProbeRecord // 最新一条记录
 	statusCounts    storage.StatusCounts // 各状态计数
 }
@@ -459,7 +462,11 @@ func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string, d
 		stat := &stats[actualIndex]
 		stat.total++
 		stat.weightedSuccess += availabilityWeight(record.Status, degradedWeight)
-		stat.latencySum += int64(record.Latency)
+		// 只统计可用状态（status > 0）的延迟
+		if record.Status > 0 {
+			stat.latencySum += int64(record.Latency)
+			stat.latencyCount++
+		}
 		incrementStatusCount(&stat.statusCounts, record.Status, record.SubStatus)
 
 		// 保留最新记录
@@ -479,9 +486,11 @@ func (h *Handler) buildTimeline(records []*storage.ProbeRecord, period string, d
 		// 计算可用率（使用权重）
 		buckets[i].Availability = (stat.weightedSuccess / float64(stat.total)) * 100
 
-		// 计算平均延迟（四舍五入）
-		avgLatency := float64(stat.latencySum) / float64(stat.total)
-		buckets[i].Latency = int(avgLatency + 0.5)
+		// 计算平均延迟（仅统计可用状态，四舍五入）
+		if stat.latencyCount > 0 {
+			avgLatency := float64(stat.latencySum) / float64(stat.latencyCount)
+			buckets[i].Latency = int(avgLatency + 0.5)
+		}
 
 		// 使用最新记录的状态和时间
 		if stat.last != nil {

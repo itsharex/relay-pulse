@@ -44,7 +44,7 @@ function App() {
     data: null,
   });
 
-  const { loading, error, data, stats, channels, providers, refetch } = useMonitorData({
+  const { loading, error, data, stats, channels, providers, slowLatencyMs, refetch } = useMonitorData({
     timeRange,
     filterService,
     filterProvider,
@@ -126,7 +126,7 @@ function App() {
 
       <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500 selection:text-white overflow-x-hidden">
         {/* 全局 Tooltip */}
-        <Tooltip tooltip={tooltip} onClose={handleBlockLeave} />
+        <Tooltip tooltip={tooltip} onClose={handleBlockLeave} slowLatencyMs={slowLatencyMs} />
 
         {/* 背景装饰 */}
         <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
@@ -181,6 +181,7 @@ function App() {
                   data={data}
                   sortConfig={sortConfig}
                   timeRange={timeRange}
+                  slowLatencyMs={slowLatencyMs}
                   onSort={handleSort}
                   onBlockHover={handleBlockHover}
                   onBlockLeave={handleBlockLeave}
@@ -194,6 +195,7 @@ function App() {
                       key={item.id}
                       item={item}
                       timeRange={timeRange}
+                      slowLatencyMs={slowLatencyMs}
                       onBlockHover={handleBlockHover}
                       onBlockLeave={handleBlockLeave}
                     />
