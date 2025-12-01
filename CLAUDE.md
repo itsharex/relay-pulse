@@ -109,6 +109,23 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+### CI/CD
+
+```bash
+# 本地模拟 CI 检查（提交前运行）
+make ci
+
+# CI 流程包含：
+# - Go 格式检查 (gofmt)
+# - Go 静态分析 (go vet)
+# - Go 单元测试 (go test)
+# - 前端 lint (npm run lint)
+```
+
+**GitHub Actions 工作流**：
+- `test.yml` - PR 和 main 分支推送时运行测试
+- `docker-publish.yml` - 测试通过后构建 Docker 镜像
+
 ## 架构与设计模式
 
 ### 后端架构
@@ -122,8 +139,11 @@ internal/
 │   ├── config.go          → 数据结构、验证、规范化
 │   ├── loader.go          → YAML 解析、环境变量覆盖
 │   └── watcher.go         → 文件监听实现热更新
+├── logger/                 → 统一日志系统（基于 log/slog）
+│   └── logger.go          → 结构化日志、request_id 支持
 ├── storage/               → 存储抽象层
 │   ├── storage.go         → 接口定义
+│   ├── common.go          → 公共工具函数
 │   └── sqlite.go          → SQLite 实现 (modernc.org/sqlite)
 ├── monitor/               → 监控逻辑
 │   ├── client.go          → HTTP 客户端池管理
@@ -141,6 +161,31 @@ internal/
 3. **热更新**: 配置变更触发回调，无需重启即可更新运行时状态
 4. **优雅关闭**: Context 传播确保资源清理
 5. **HTTP 客户端池**: 通过 `monitor.ClientPool` 复用连接
+6. **结构化日志**: 统一使用 `logger` 包，支持 request_id 链路追踪
+
+### 日志系统
+
+项目使用 Go 标准库 `log/slog` 实现统一的结构化日志：
+
+```go
+// 基础用法
+logger.Info("component", "消息", "key1", value1, "key2", value2)
+logger.Warn("component", "警告消息", "error", err)
+logger.Error("component", "错误消息", "error", err)
+
+// 带 request_id 的日志（用于 API 请求追踪）
+logger.FromContext(ctx, "api").Info("请求处理完成", "status", 200)
+```
+
+**日志格式**：
+```
+time=2024-01-15T10:30:00.000Z level=INFO msg=消息 app=relay-pulse component=api request_id=abc123
+```
+
+**Request ID 中间件**：
+- API 层自动为每个请求生成 8 位短 UUID
+- 支持通过 `X-Request-ID` 请求头传入自定义 ID
+- 响应头返回 `X-Request-ID` 便于客户端关联
 
 ### 配置热更新模式
 
