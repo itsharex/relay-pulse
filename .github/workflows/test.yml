@@ -35,11 +35,16 @@ jobs:
         run: |
           npm ci
           npm run build
+          echo "Frontend build completed, checking dist..."
+          ls -la dist/
 
       - name: Copy frontend dist to internal/api
         run: |
           mkdir -p internal/api/frontend
           cp -r frontend/dist internal/api/frontend/
+          echo "Verifying embed directory..."
+          ls -la internal/api/frontend/dist/
+          test -f internal/api/frontend/dist/index.html || (echo "ERROR: index.html not found!" && exit 1)
 
       - name: Go format check
         run: |
