@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Shield, AlertTriangle, Github, Tag, ChevronDown, ChevronUp, Bug } from 'lucide-react';
+import { Github, Tag, ChevronDown, ChevronUp, Bug, Zap, Handshake, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useVersionInfo } from '../hooks/useVersionInfo';
 import { FEEDBACK_URLS } from '../constants';
@@ -11,17 +11,17 @@ export function Footer() {
 
   const notices = [
     {
-      icon: Activity,
+      icon: Zap,
       title: t('footer.disclaimer.dataReference.title'),
       text: t('footer.disclaimer.dataReference.text'),
     },
     {
-      icon: Shield,
+      icon: Handshake,
       title: t('footer.disclaimer.neutralMaintenance.title'),
       text: t('footer.disclaimer.neutralMaintenance.text'),
     },
     {
-      icon: AlertTriangle,
+      icon: ShieldCheck,
       title: t('footer.disclaimer.monitoringScope.title'),
       text: t('footer.disclaimer.monitoringScope.text'),
     },

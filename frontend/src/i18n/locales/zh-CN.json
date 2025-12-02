@@ -125,16 +125,16 @@
     "disclaimer": {
       "title": "免责声明",
       "dataReference": {
-        "title": "数据仅供参考",
-        "text": "受网络环境影响，不代表服务商绝对质量"
+        "title": "真实 Token 探测",
+        "text": "每次检测消耗真实 Token，受网络波动影响，呈现当时的真实响应指标"
       },
       "neutralMaintenance": {
-        "title": "中立维护",
-        "text": "本项目个人维护，保持中立，无利益相关"
+        "title": "透明运营",
+        "text": "部分链接含推荐代码，用于覆盖运营成本，监测数据独立生成，不受推荐关系干扰"
       },
       "monitoringScope": {
-        "title": "监测范围",
-        "text": "连通性 + 延迟 + 内容校验，数据仅供参考"
+        "title": "深度协议校验",
+        "text": "连通性 + 延迟 + 响应内容校验，拒绝 API 假活"
       }
     },
     "issuesBtn": "问题反馈",

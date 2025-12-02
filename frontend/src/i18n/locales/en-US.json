@@ -125,16 +125,16 @@
     "disclaimer": {
       "title": "Disclaimer",
       "dataReference": {
-        "title": "Data for reference only",
-        "text": "Affected by network conditions; does not represent providers' absolute quality"
+        "title": "Real Token Checks",
+        "text": "Each check consumes real tokens; results reflect actual response metrics at the time of probing, subject to network fluctuations"
       },
       "neutralMaintenance": {
-        "title": "Neutral maintenance",
-        "text": "This project is maintained personally, remains neutral, and has no vested interests"
+        "title": "Transparent Operation",
+        "text": "Some links contain referral codes to cover operational costs; monitoring data is independently generated and unaffected by referral relationships"
       },
       "monitoringScope": {
-        "title": "Monitoring scope",
-        "text": "Connectivity + latency + content validation; data for reference only"
+        "title": "Deep Protocol Validation",
+        "text": "Connectivity + latency + response content validation; no fake API uptime claims"
       }
     },
     "issuesBtn": "Report an issue",
