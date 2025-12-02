@@ -290,6 +290,78 @@ GRANT ALL PRIVILEGES ON DATABASE llm_monitor TO monitor;
   - 支持常见的流式响应格式（如 Anthropic 的 `content_block_delta`、
     OpenAI 的 `choices[].delta.content`），会自动拼接增量文本再进行关键字匹配。
 
+##### `hidden`
+- **类型**: boolean
+- **默认值**: `false`
+- **说明**: 临时下架该监控项（隐藏但继续监控）
+- **行为**:
+  - 调度器继续探测，存储结果（用于整改证据）
+  - API `/api/status` 默认不返回（可加 `?include_hidden=true` 调试）
+  - 前端不展示
+  - sitemap 不包含
+- **示例**:
+  ```yaml
+  - provider: "问题商家"
+    service: "cc"
+    hidden: true
+    hidden_reason: "服务质量不达标，待整改"
+  ```
+
+##### `hidden_reason`
+- **类型**: string
+- **说明**: 下架原因（可选，用于运维审计）
+- **示例**: `"服务质量不达标，待整改"`, `"该通道临时维护"`
+
+### 临时下架配置
+
+用于临时下架服务商（如商家不配合整改），支持两种级别：
+
+#### Provider 级别下架
+
+批量下架整个服务商的所有监控项：
+
+```yaml
+hidden_providers:
+  - provider: "问题商家A"
+    reason: "服务质量不达标，待整改"
+  - provider: "问题商家B"
+    reason: "API 频繁超时，沟通整改中"
+
+monitors:
+  - provider: "问题商家A"  # 自动继承 hidden=true
+    service: "cc"
+    # ...
+```
+
+#### Monitor 级别下架
+
+下架单个监控项：
+
+```yaml
+monitors:
+  - provider: "正常商家"
+    service: "cc"
+    hidden: true                    # 临时下架
+    hidden_reason: "该通道临时维护"  # 下架原因
+    # ...
+```
+
+#### 优先级规则
+
+| Provider Hidden | Monitor Hidden | 最终状态 | 原因来源 |
+|-----------------|----------------|----------|----------|
+| ✅ | ❌ | **隐藏** | provider.reason |
+| ❌ | ✅ | **隐藏** | monitor.hidden_reason |
+| ✅ | ✅ | **隐藏** | monitor.hidden_reason（优先） |
+| ❌ | ❌ | **显示** | - |
+
+#### 调试接口
+
+```bash
+# 查看包含隐藏项的完整列表（内部调试用）
+curl "http://localhost:8080/api/status?include_hidden=true"
+```
+
 ## 环境变量覆盖
 
 为了安全性，强烈建议使用环境变量来管理 API Key，而不是写在配置文件中。

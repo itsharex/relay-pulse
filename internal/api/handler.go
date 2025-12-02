@@ -166,6 +166,8 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	period := c.DefaultQuery("period", "24h")
 	qProvider := strings.ToLower(strings.TrimSpace(c.DefaultQuery("provider", "all")))
 	qService := c.DefaultQuery("service", "all")
+	// include_hidden 参数：用于内部调试，默认不包含隐藏的监控项
+	includeHidden := strings.EqualFold(strings.TrimSpace(c.DefaultQuery("include_hidden", "false")), "true")
 
 	// 验证 period 参数
 	if _, err := h.parsePeriod(period); err != nil {
@@ -176,14 +178,14 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	}
 
 	// 构建缓存 key（使用明确的分隔符避免碰撞）
-	cacheKey := fmt.Sprintf("p=%s|prov=%s|svc=%s", period, qProvider, qService)
+	cacheKey := fmt.Sprintf("p=%s|prov=%s|svc=%s|hidden=%t", period, qProvider, qService, includeHidden)
 
 	// 使用缓存（singleflight 防止缓存击穿）
 	// 注意：使用独立 context，避免单个请求取消影响其他等待的请求
 	data, err := h.cache.load(cacheKey, func() ([]byte, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		return h.queryAndSerialize(ctx, period, qProvider, qService)
+		return h.queryAndSerialize(ctx, period, qProvider, qService, includeHidden)
 	})
 
 	if err != nil {
@@ -201,7 +203,7 @@ func (h *Handler) GetStatus(c *gin.Context) {
 }
 
 // queryAndSerialize 查询数据库并序列化为 JSON（缓存 miss 时调用）
-func (h *Handler) queryAndSerialize(ctx context.Context, period, qProvider, qService string) ([]byte, error) {
+func (h *Handler) queryAndSerialize(ctx context.Context, period, qProvider, qService string, includeHidden bool) ([]byte, error) {
 	since, _ := h.parsePeriod(period) // 已在调用前验证
 
 	// 获取配置副本（线程安全）
@@ -227,7 +229,7 @@ func (h *Handler) queryAndSerialize(ctx context.Context, period, qProvider, qSer
 	}
 
 	// 过滤并去重监控项
-	filtered := h.filterMonitors(monitors, realProvider, qService)
+	filtered := h.filterMonitors(monitors, realProvider, qService, includeHidden)
 
 	// 根据配置选择串行或并发查询
 	var response []MonitorResult
@@ -262,11 +264,16 @@ func (h *Handler) queryAndSerialize(ctx context.Context, period, qProvider, qSer
 }
 
 // filterMonitors 过滤并去重监控项
-func (h *Handler) filterMonitors(monitors []config.ServiceConfig, provider, service string) []config.ServiceConfig {
+func (h *Handler) filterMonitors(monitors []config.ServiceConfig, provider, service string, includeHidden bool) []config.ServiceConfig {
 	var filtered []config.ServiceConfig
 	seen := make(map[string]bool)
 
 	for _, task := range monitors {
+		// 过滤隐藏的监控项（除非显式要求包含）
+		if !includeHidden && task.Hidden {
+			continue
+		}
+
 		normalizedTaskProvider := strings.ToLower(strings.TrimSpace(task.Provider))
 
 		// 过滤（统一使用 provider 名称匹配）
@@ -593,12 +600,17 @@ func (h *Handler) GetSitemap(c *gin.Context) {
 	c.String(http.StatusOK, sitemap)
 }
 
-// extractUniqueProviderSlugs 从监控配置中提取唯一的 provider slugs
+// extractUniqueProviderSlugs 从监控配置中提取唯一的 provider slugs（排除隐藏的）
 func (h *Handler) extractUniqueProviderSlugs(monitors []config.ServiceConfig) []string {
 	slugSet := make(map[string]bool)
 	var slugs []string
 
 	for _, task := range monitors {
+		// 跳过隐藏的监控项
+		if task.Hidden {
+			continue
+		}
+
 		slug := task.ProviderSlug
 		if slug == "" {
 			slug = strings.ToLower(strings.TrimSpace(task.Provider))

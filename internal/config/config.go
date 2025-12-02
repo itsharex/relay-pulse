@@ -28,10 +28,22 @@ type ServiceConfig struct {
 	// SuccessContains 可选：响应体需包含的关键字，用于判定请求语义是否成功
 	SuccessContains string `yaml:"success_contains" json:"success_contains"`
 
+	// 临时下架配置：隐藏但继续探测，用于商家整改期间
+	// Hidden 为 true 时，API 不返回该监控项，但调度器继续探测并存储结果
+	Hidden       bool   `yaml:"hidden" json:"hidden"`
+	HiddenReason string `yaml:"hidden_reason" json:"hidden_reason"` // 下架原因（可选）
+
 	// 解析后的"慢请求"阈值（来自全局配置），用于黄灯判定
 	SlowLatencyDuration time.Duration `yaml:"-" json:"-"`
 
 	APIKey string `yaml:"api_key" json:"-"` // 不返回给前端
+}
+
+// HiddenProviderConfig 批量隐藏指定 provider 的配置
+// 用于临时下架某个服务商的所有监控项
+type HiddenProviderConfig struct {
+	Provider string `yaml:"provider" json:"provider"` // provider 名称，需与 monitors 中的 provider 完全匹配
+	Reason   string `yaml:"reason" json:"reason"`     // 下架原因（可选）
 }
 
 // StorageConfig 存储配置
@@ -107,6 +119,11 @@ type AppConfig struct {
 	// 默认: https://relaypulse.top
 	// 可通过环境变量 MONITOR_PUBLIC_BASE_URL 覆盖
 	PublicBaseURL string `yaml:"public_base_url" json:"public_base_url"`
+
+	// 批量隐藏的服务商列表
+	// 列表中的 provider 会自动继承 hidden=true 状态到对应的 monitors
+	// 用于临时下架整个服务商（如商家不配合整改）
+	HiddenProviders []HiddenProviderConfig `yaml:"hidden_providers" json:"hidden_providers"`
 
 	Monitors []ServiceConfig `yaml:"monitors"`
 }
@@ -303,6 +320,20 @@ func (c *AppConfig) Normalize() error {
 		log.Println("[Config] 警告: SQLite 使用单连接（max_open_conns=1），并发查询无性能收益，建议关闭 enable_concurrent_query")
 	}
 
+	// 构建隐藏的服务商映射（provider -> reason）
+	// 注意：provider 统一转小写，与 API 查询逻辑保持一致
+	hiddenProviderMap := make(map[string]string)
+	for i, hp := range c.HiddenProviders {
+		provider := strings.ToLower(strings.TrimSpace(hp.Provider))
+		if provider == "" {
+			return fmt.Errorf("hidden_providers[%d]: provider 不能为空", i)
+		}
+		if _, exists := hiddenProviderMap[provider]; exists {
+			return fmt.Errorf("hidden_providers[%d]: provider '%s' 重复配置", i, hp.Provider)
+		}
+		hiddenProviderMap[provider] = strings.TrimSpace(hp.Reason)
+	}
+
 	// 将全局慢请求阈值下发到每个监控项，并标准化 category、URLs、provider_slug
 	slugSet := make(map[string]int) // slug -> monitor index (用于检测重复)
 	for i := range c.Monitors {
@@ -339,6 +370,22 @@ func (c *AppConfig) Normalize() error {
 			log.Printf("[Config] 注意: provider_slug '%s' 被多个监控项使用 (monitor[%d] 和 monitor[%d])", slug, prevIdx, i)
 		} else {
 			slugSet[slug] = i
+		}
+
+		// 计算最终隐藏状态：providerHidden || monitorHidden
+		// 原因优先级：monitor.HiddenReason > provider.Reason
+		// 注意：查找时使用小写 provider，与 hiddenProviderMap 构建逻辑一致
+		normalizedProvider := strings.ToLower(strings.TrimSpace(c.Monitors[i].Provider))
+		providerReason, providerHidden := hiddenProviderMap[normalizedProvider]
+		if providerHidden || c.Monitors[i].Hidden {
+			c.Monitors[i].Hidden = true
+			// 如果 monitor 自身没有设置原因，使用 provider 级别的原因
+			monitorReason := strings.TrimSpace(c.Monitors[i].HiddenReason)
+			if monitorReason == "" && providerHidden {
+				c.Monitors[i].HiddenReason = providerReason
+			} else {
+				c.Monitors[i].HiddenReason = monitorReason
+			}
 		}
 	}
 
@@ -483,8 +530,10 @@ func (c *AppConfig) Clone() *AppConfig {
 		ConcurrentQueryLimit:  c.ConcurrentQueryLimit,
 		Storage:               c.Storage,
 		PublicBaseURL:         c.PublicBaseURL,
+		HiddenProviders:       make([]HiddenProviderConfig, len(c.HiddenProviders)),
 		Monitors:              make([]ServiceConfig, len(c.Monitors)),
 	}
+	copy(clone.HiddenProviders, c.HiddenProviders)
 	copy(clone.Monitors, c.Monitors)
 	return clone
 }
