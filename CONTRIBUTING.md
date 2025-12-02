@@ -18,7 +18,7 @@
 ### 必需工具
 
 ```bash
-# Go 1.21+
+# Go 1.24+
 go version
 
 # pre-commit (代码提交检查)

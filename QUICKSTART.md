@@ -43,6 +43,8 @@ slow_latency: "5s"
 monitors:
   - provider: "openai"
     service: "gpt-4"
+    category: "commercial"           # 必填：商业站(commercial) 或 公益站(public)
+    sponsor: "团队自有"              # 必填：提供 API Key 的赞助者
     url: "https://api.openai.com/v1/chat/completions"
     method: "POST"
     api_key: "sk-your-api-key-here"
@@ -116,6 +118,8 @@ EOF
 monitors:
   - provider: "openai"
     service: "gpt-4"
+    category: "commercial"
+    sponsor: "团队自有"
     url: "https://api.openai.com/v1/chat/completions"
     method: "POST"
     # api_key 留空或不填，将从环境变量读取
@@ -204,6 +208,8 @@ monitors:
   # OpenAI GPT-4
   - provider: "openai"
     service: "gpt-4"
+    category: "commercial"
+    sponsor: "团队自有"
     url: "https://api.openai.com/v1/chat/completions"
     method: "POST"
     api_key: "sk-openai-key"
@@ -216,6 +222,8 @@ monitors:
   # Anthropic Claude
   - provider: "anthropic"
     service: "claude-3-opus"
+    category: "commercial"
+    sponsor: "团队自有"
     url: "https://api.anthropic.com/v1/messages"
     method: "POST"
     api_key: "sk-ant-key"
@@ -229,6 +237,8 @@ monitors:
   # Google Gemini
   - provider: "google"
     service: "gemini-pro"
+    category: "commercial"
+    sponsor: "团队自有"
     url: "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={{API_KEY}}"
     method: "POST"
     api_key: "your-google-api-key"

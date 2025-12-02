@@ -70,6 +70,40 @@ monitors:
 - **说明**: 超过此阈值的请求被标记为"慢请求"（黄色状态）
 - **示例**: `"3s"`, `"5s"`, `"10s"`
 
+#### `degraded_weight`
+- **类型**: float
+- **默认值**: `0.7`
+- **说明**: 黄色状态在可用率统计中的权重，合法范围 0-1；填 0 视为未配置，使用默认值 0.7
+- **计算公式**: `可用率 = (绿色次数 × 1.0 + 黄色次数 × degraded_weight) / 总次数 × 100`
+
+#### `max_concurrency`
+- **类型**: integer
+- **默认值**: `10`
+- **说明**: 单轮巡检允许的最大并发探测数
+- **特殊值**:
+  - `0` 或未配置: 使用默认值 10
+  - `-1`: 无限制，自动扩容到监控项数量
+  - `>0`: 硬上限，超过时排队等待
+- **调优建议**:
+  - 小规模 (<20 项): 10-20
+  - 中等规模 (20-100 项): 50-100
+  - 大规模 (>100 项): `-1` 或更高值
+
+#### `stagger_probes`
+- **类型**: boolean
+- **默认值**: `true`
+- **说明**: 是否在单个周期内对探测进行错峰分布，避免流量突发
+- **行为**:
+  - `true`: 将监控项均匀分散在整个巡检周期内执行（推荐）
+  - `false`: 所有监控项同时执行（仅用于调试或压测）
+
+#### `public_base_url`
+- **类型**: string
+- **默认值**: `"https://relaypulse.top"`
+- **说明**: 对外访问的基础 URL，用于生成 sitemap、分享链接等
+- **环境变量**: `MONITOR_PUBLIC_BASE_URL`
+- **格式要求**: 必须是 `http://` 或 `https://` 协议
+
 #### `enable_concurrent_query`
 - **类型**: boolean
 - **默认值**: `false`
@@ -201,7 +235,7 @@ GRANT ALL PRIVILEGES ON DATABASE llm_monitor TO monitor;
 - 服务会自动保留最近 30 天的 `probe_history` 数据，后台定时器每 24 小时调用 `CleanOldRecords(30)` 删除更早的样本。
 - 该策略对 SQLite 与 PostgreSQL 均生效，无需额外配置即可防止数据库无限增长。
 - 保留窗口目前固定为 30 天，如需调整需修改源码或在 Issue 中提出新特性需求。
-- 运维层面的验证与手动清理命令请参考 [运维手册 - 数据保留策略](operations.md#数据保留策略)。
+- 运维层面的验证与手动清理命令请参考 [运维手册 - 数据保留策略（历史文档，仅供参考）](../../archive/docs/user/operations.md#数据保留策略)。
 
 ### 监控项配置
 
@@ -238,6 +272,25 @@ GRANT ALL PRIVILEGES ON DATABASE llm_monitor TO monitor;
 - **可选值**: `"GET"`, `"POST"`, `"PUT"`, `"DELETE"`, `"PATCH"`
 
 #### 可选字段
+
+##### `provider_slug`
+- **类型**: string
+- **说明**: 服务商的 URL 短标识，用于生成 `/p/<slug>` 专属页面链接
+- **默认值**: 未配置时自动使用 `provider` 的小写形式
+- **格式要求**: 仅允许小写字母 (a-z)、数字 (0-9)、连字符 (-)，不能以连字符开头或结尾，不能有连续连字符
+- **示例**: `"88code"`, `"openai"`, `"my-provider"`
+
+##### `provider_url`
+- **类型**: string
+- **说明**: 服务商官网链接（可选），前端展示为外部跳转
+- **格式要求**: 必须是 `http://` 或 `https://` 协议
+- **示例**: `"https://88code.com"`, `"https://openai.com"`
+
+##### `sponsor_url`
+- **类型**: string
+- **说明**: 赞助者展示用链接（可选），例如个人主页或组织网站
+- **格式要求**: 必须是 `http://` 或 `https://` 协议
+- **示例**: `"https://example.com/sponsor"`
 
 ##### `channel`
 - **类型**: string
@@ -705,5 +758,5 @@ monitors:
 
 ## 下一步
 
-- [运维手册](operations.md) - 日常运维和故障排查
-- [API 规范](../reference/api.md) - REST API 详细文档
+- [运维手册（历史文档，仅供参考）](../../archive/docs/user/operations.md) - 日常运维与故障排查
+- [API 端点示例](../../README.md#-api-端点) - 当前权威参考（正式 API 规范整理中）
