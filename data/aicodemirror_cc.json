@@ -1,0 +1,1 @@
+{"model":"claude-haiku-4-5-20251001","messages":[{"role":"user","content":[{"type":"text","text":"ping"}]},{"role":"assistant","content":[{"type":"text","text":"{"}]}],"system":[{"type":"text","text":"Reply with JSON: {\"isNewTopic\": true, \"title\": \"test\"}"}],"tools":[],"metadata":{"user_id":"monitor"},"max_tokens":100,"stream":false}

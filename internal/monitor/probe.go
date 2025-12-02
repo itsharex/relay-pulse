@@ -52,8 +52,8 @@ func (p *Prober) Probe(ctx context.Context, cfg *config.ServiceConfig) *ProbeRes
 		SubStatus: storage.SubStatusNone,
 	}
 
-	// 准备请求体
-	reqBody := bytes.NewBuffer([]byte(cfg.Body))
+	// 准备请求体（去除首尾空白，某些 API 对此敏感）
+	reqBody := bytes.NewBuffer([]byte(strings.TrimSpace(cfg.Body)))
 	req, err := http.NewRequestWithContext(ctx, cfg.Method, cfg.URL, reqBody)
 	if err != nil {
 		result.Error = fmt.Errorf("创建请求失败: %w", err)

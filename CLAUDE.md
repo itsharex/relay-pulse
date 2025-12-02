@@ -72,6 +72,10 @@ go vet ./...
 
 # 整理依赖
 go mod tidy
+
+# 验证单个检测项（调试配置问题）
+go run ./cmd/verify/main.go -provider <name> -service <name> [-v]
+# 示例: go run ./cmd/verify/main.go -provider AICodeMirror -service cc -v
 ```
 
 ### 前端 (React)
