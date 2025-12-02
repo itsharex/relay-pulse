@@ -123,18 +123,18 @@
   },
   "footer": {
     "disclaimer": {
-      "title": "Disclaimer",
+      "title": "Platform Statement",
       "dataReference": {
-        "title": "Real Token Checks",
-        "text": "Each check consumes real tokens; results reflect actual response metrics at the time of probing, subject to network fluctuations"
+        "title": "Real Consumption Probing",
+        "text": "Probes are initiated based on actual token usage; results vary with network conditions and provider load, faithfully reflecting API response quality"
       },
       "neutralMaintenance": {
-        "title": "Transparent Operation",
-        "text": "Some links contain referral codes to cover operational costs; monitoring data is independently generated and unaffected by referral relationships"
+        "title": "Open and Transparent Operations",
+        "text": "Some links include referral codes to offset high-frequency probing costs. Monitoring logic is fully open source and data is generated objectively, never compromised by vested interests"
       },
       "monitoringScope": {
-        "title": "Deep Protocol Validation",
-        "text": "Connectivity + latency + response content validation; no fake API uptime claims"
+        "title": "Full-Stack Protocol Verification",
+        "text": "Covers TCP connectivity, RTT latency, and deep validation of response content, effectively detecting \"fake alive\" APIs that connect but cannot converse"
       }
     },
     "issuesBtn": "Report an issue",
