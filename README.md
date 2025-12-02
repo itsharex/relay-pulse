@@ -4,6 +4,8 @@
 
 ### 拒绝 API 假活，基于真实调用的 LLM 服务质量观测台
 
+**中文** | [English](README.en.md)
+
 [![在线演示](https://img.shields.io/badge/🌐_在线演示-relaypulse.top-00d8ff?style=for-the-badge)](https://relaypulse.top)
 [![Go](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://go.dev/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
