@@ -1,21 +1,44 @@
-# Relay Pulse - LLM 服务可用性监控
+<div align="center">
 
-> **Audience**: 用户（部署和使用）| **Last reviewed**: 2025-11-21
+# Relay Pulse
 
-企业级 LLM 服务可用性监控系统，实时追踪服务状态并提供可视化仪表板。
+### 拒绝 API 假活，基于真实调用的 LLM 服务质量观测台
 
 [![在线演示](https://img.shields.io/badge/🌐_在线演示-relaypulse.top-00d8ff?style=for-the-badge)](https://relaypulse.top)
+[![Go](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://go.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 
-![Status Dashboard](https://img.shields.io/badge/status-production-green) ![License](https://img.shields.io/badge/license-MIT-blue) [![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker)](https://ghcr.io/prehisle/relay-pulse)
+<img src="docs/screenshots/dashboard-preview.png" alt="RelayPulse Dashboard" width="100%">
+
+</div>
+
+---
+
+## 简介
+
+传统监控工具（如 Uptime Kuma）检测的是 HTTP 连通性——但在 LLM 中转场景下，**"HTTP 200 却返回空内容或错误码"** 的"假活"现象屡见不鲜。
+
+**RelayPulse** 通过消耗真实 Token 定时发起 API 请求，并校验响应内容。只有 LLM 真的"吐字"了，才算可用。
 
 ## ✨ 核心特性
 
-- **📊 实时监控** - 多服务并发健康检查，实时状态追踪
-- **🔄 配置热更新** - 修改配置无需重启，立即生效
-- **💾 多存储后端** - 支持 SQLite（单机）和 PostgreSQL（K8s）
-- **📈 历史数据** - 24小时/7天/30天可用率统计
-- **🎨 可视化仪表板** - React + Tailwind CSS，响应式设计
-- **🐳 云原生** - Docker/K8s 就绪，支持水平扩展
+- **💸 真实 API 探测** - 消耗真实 Token，拒绝虚假繁荣
+- **📊 可视化矩阵** - 24h/7d/30d 可用率热力图，一眼看穿服务质量
+- **🔄 配置热更新** - 基于 fsnotify，修改配置无需重启
+- **💾 多存储后端** - SQLite（单机）/ PostgreSQL（K8s）
+- **🐳 云原生友好** - 极小 Docker 镜像，支持水平扩展
+
+## 🎯 适用场景
+
+- 自建/采购 LLM 中转服务，持续验证 SLA
+- 多云 LLM 供应商质量对比，观察延迟与错误率
+- 外部 API 依赖监控，避免"假活"导致业务故障
+
+## 💰 成本与隐私
+
+- **探测成本极低**：`max_tokens: 1`，每次约 20 input + 1 output tokens；默认每分钟一次，约 3 万 tokens/天/服务
+- **数据本地存储**：配置与密钥仅存本地/自托管环境，监控数据不回传
 
 ## 🚀 快速开始
 
@@ -160,6 +183,10 @@ curl http://localhost:8080/api/version
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 📈 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=prehisle/relay-pulse&type=Date)](https://star-history.com/#prehisle/relay-pulse&Date)
 
 ## 📄 许可证
 
